@@ -34,7 +34,6 @@ def attention_scores(a, b):
     return A
 
 def create_causal_mask(embed_dim, n_heads, max_context_len):
-    raise Exception("Not implemented")
     # Return a causal mask (a tensor) with zeroes in dimensions we want to zero out.
     # This function receives more arguments than it actually needs. This is just because
     # it is part of an assignment, and I want you to figure out on your own which arguments
@@ -44,10 +43,17 @@ def create_causal_mask(embed_dim, n_heads, max_context_len):
     return mask
 
 def self_attention(v, A, mask = None):
-    raise Exception("Not implemented.")
     # TODO compute sa (corresponding to y in the assignemnt text).
     # This should take very few lines of code.
     # As usual, the dimensions of v and of sa are (b x n x d).
+
+    if mask is not None:
+        #avoid size inconsistencies and make sure the same device is being used
+        curr_mask = mask[:A.size(-2), :A.size(-1)].to(A.device)
+        A = A.masked_fill(curr_mask==0,float('-inf'))
+
+    #Softmax(QK^T/sqrt(D_K))@ V
+    sa = torch.matmul(F.softmax(A,dim=-1),v)
     return sa
 
 
@@ -58,7 +64,7 @@ def self_attention_layer(x, kqv_matrix, attention_mask):
     return sa
 
 def multi_head_attention_layer(x, kqv_matrices, mask):
-    raise Exception("Not implemented.")
+    # raise Exception("Not implemented.")
     B, N, D = x.size()
     # TODO implement multi-head attention.
     # This is most easily done using calls to self_attention_layer, each with a different
@@ -67,6 +73,9 @@ def multi_head_attention_layer(x, kqv_matrices, mask):
     # There is also a tricker (but more efficient) version of multi-head attention, where we do all the computation
     # using a single multiplication with a single kqv_matrix (or a single kqv_tensor) and re-arranging the results afterwards.
     # If you want a challenge, you can try and implement this. You may need to change additional places in the code accordingly.
+    
+    heads = [self_attention_layer(x,kqv_matrix,mask) for kqv_matrix in kqv_matrices]
+    sa = torch.cat(heads,dim=-1)
     assert sa.size() == x.size()
     return sa
 
