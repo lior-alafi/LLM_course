@@ -5,6 +5,7 @@ from torch import nn
 import torch.nn.functional as F
 import random
 import glob
+import json
 
 class CharTokenizer:
     def __init__(self):
@@ -42,13 +43,17 @@ class CharTokenizer:
         return "".join(strs)
 
     def save(self, path: str) -> None:
-        # TODO: save it.
-        ...
+        with open(path, 'w') as f:
+            f.write(json.dumps(self.stoi))
 
     @staticmethod
     def load(path: str) -> CharTokenizer:
         tokenizer = CharTokenizer()
-        # TODO: load it.
+        with open(path, 'r') as f:
+            tokenizer.stoi = json.load(f)
+        tokenizer.vocab=list(tokenizer.stoi.keys())
+        tokenizer.tokens=tokenizer.vocab[1:]
+        tokenizer.symbols=tokenizer.vocab[0:1]
         return tokenizer
 
 class RandomOrderDataIterator:

@@ -1,2 +1,17 @@
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+
+# Data
 data/
+
+# Virtual Environments
+.venv/
+env/
+venv/
+ENV/
+
+# uv
+.uv/
+.python-version
