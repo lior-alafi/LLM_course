@@ -4,7 +4,7 @@ from torch import nn
 import torch.nn.functional as F
 
 def batch_to_labeled_samples(batch: torch.IntTensor) -> [torch.IntTensor, torch.IntTensor]:
-    raise Exception("Not implemented.")
+    # raise Exception("Not implemented.")
     # TODO implement this.
     # The batches that we get from the reader have corpus-sequences of length max-context + 1.
     # We need to translate them to input/output examples, each of which is shorter by one.
@@ -20,6 +20,6 @@ def compute_loss(logits, gold_labels):
     # NOTE remember to handle padding (ignore them in loss calculation!)
     # NOTE cross-entropy expects other dimensions for logits
     # NOTE you can either use cross_entropy from PyTorch, or implement the loss on your own.
-    loss=F.cross_entropy(logits,gold_labels)
+    loss = F.cross_entropy(logits.transpose(1, 2), gold_labels, ignore_index=0)
     return  loss
 

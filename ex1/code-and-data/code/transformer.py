@@ -17,10 +17,8 @@ class TransformerDecoderBlock(nn.Module):
         if self.with_residuals:
             # TODO add residuals support.
             x=inputs
-            x= self.layer_norm_1(x)
-            x =x+self.causal_attention(x)
-            x= self.layer_norm_2(x)
-            x=x+self.mlp(x)
+            x =x+self.causal_attention(self.layer_norm_1(x))
+            x=x+self.mlp(self.layer_norm_2(x))
             return x
         else:
             x = inputs
@@ -82,21 +80,21 @@ class TransformerLM(nn.Module):
         # TODO implement initialization logic for embeddings and linear layers.
         # The code break down the parameters by type (layer-norm, linear, embedding),
         # but can also condition on individual names, for example by checking pn.endswith(...).
-        for pn, p in self.named_parameters():
-            if isinstance(p, nn.LayerNorm):
-                torch.nn.init.ones_(p.weight)
-                torch.nn.init.zeros_(p.bias)
-            elif isinstance(p, nn.Linear):
-                # TODO initialize p.weight and p.bias (if it is not None).
-                # You can look at initializers in torch.nn.init
-                torch.nn.init.xavier_normal_(p.weight) #https://apxml.com/courses/pytorch-for-tensorflow-developers/chapter-2-pytorch-nn-module-for-keras-users/weight-initialization-pytorch
-                torch.nn.init.zeros_(p.bias)
-            elif isinstance(p, nn.Embedding):
-                # TODO initialize p.weight and p.bias (if it is not None).
-                # You can look at initializers in torch.nn.init
-                torch.nn.init.normal_(p.weight, mean=0, std=0.02) #An Exploration of Word Embedding Initialization in Deep-Learning Tasks
-                torch.nn.init.zeros_(p.bias)
 
+        # using modules instead 
+        for module in self.modules():
+            if isinstance(module, nn.Linear):
+                nn.init.normal_(module.weight, mean=0.0, std=0.02)
+                if module.bias is not None:
+                    nn.init.zeros_(module.bias)
+
+            elif isinstance(module, nn.Embedding):
+                nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
+            elif isinstance(module, nn.LayerNorm):
+                nn.init.ones_(module.weight)
+                if module.bias is not None:
+                    nn.init.zeros_(module.bias)
 
     def sample_continuation(self, prefix: list[int], max_tokens_to_generate: int) -> list[int]:
         feed_to_lm = prefix[:]
@@ -106,10 +104,10 @@ class TransformerLM(nn.Module):
                 if len(feed_to_lm) > self.max_context_len:
                     # if we have more tokens than context length, trim it to context length.
                     feed_to_lm = feed_to_lm[-self.max_context_len:]
-                logits = self(torch.tensor([feed_to_lm], dtype=torch.int32))
+                logits = self(torch.tensor([feed_to_lm], dtype=torch.long, device=self.word_prediction.weight.device))
                 logits_for_last_token = logits[0][-1]
-                distribution_for_last_token = F.softmax(logits_for_last_token)
-                sampled_token = torch.multinomial(distribution_for_last_token, num_samples=1)
+                distribution_for_last_token = F.softmax(logits_for_last_token,dim=-1)
+                sampled_token = torch.multinomial(distribution_for_last_token, num_samples=1).item()
                 generated.append(sampled_token)
                 feed_to_lm.append(sampled_token)
         return generated
@@ -119,19 +117,28 @@ class TransformerLM(nn.Module):
         # Temperature should be the temperature in which you sample.
         # TopK indicates that we don't sample from the entire distribution, but only from the top k scoring tokens
         # for the given position.
-        feed_to_llm=prefix[:]
-        generated=[]
+        feed_to_lm = prefix[:]
+        generated = []
+
         with torch.no_grad():
             while len(generated) < max_tokens_to_generate:
                 if len(feed_to_lm) > self.max_context_len:
                     # if we have more tokens than context length, trim it to context length.
                     feed_to_lm = feed_to_lm[-self.max_context_len:]
-                    logits=self(torch.tensor(feed_to_llm,dtype=torch.int32))
-                    logits_for_last_token = logits[0][-1]
-                    ditsribution = F.softmax(logits_for_last_token/temperature)
-                    top_k_dist ,top_k_indices=torch.topk(ditsribution,topK)
-                    sampled_token=torch.multinomial(top_k_dist,num_samples=1)
-                    generated.append(sampled_token)
-                    feed_to_lm.append(sampled_token)
+
+                logits = self(torch.tensor([feed_to_lm], dtype=torch.long, device=self.word_prediction.weight.device))
+                logits_for_last_token = logits[0][-1]
+
+                scaled_logits = logits_for_last_token / temperature
+
+                top_k_vals, top_k_indices = torch.topk(scaled_logits, topK)
+
+                top_k_distribution = F.softmax(top_k_vals, dim=-1)
+
+                sampled_idx_in_topk = torch.multinomial(top_k_distribution, num_samples=1).item()
+                sampled_token = top_k_indices[sampled_idx_in_topk].item()
+
+                generated.append(sampled_token)
+                feed_to_lm.append(sampled_token)
+
         return generated
-                    
