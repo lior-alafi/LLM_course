@@ -28,14 +28,12 @@ def test_init_weights_via_parameters():
                 torch.nn.init.zeros_(p.bias)
                 assert torch.ones_like(p.weight) - p.weight == torch.zeros_like(p.weight)
             elif isinstance(p, nn.Linear):
-                # TODO initialize p.weight and p.bias (if it is not None).
                 # You can look at initializers in torch.nn.init
                 
                 torch.nn.init.xavier_normal_(p.weight) #https://apxml.com/courses/pytorch-for-tensorflow-developers/chapter-2-pytorch-nn-module-for-keras-users/weight-initialization-pytorch
                 torch.nn.init.zeros_(p.bias)
                 print("2")
             elif isinstance(p, nn.Embedding):
-                # TODO initialize p.weight and p.bias (if it is not None).
                 # You can look at initializers in torch.nn.init
                 torch.nn.init.normal_(p.weight, mean=0, std=0.02) #An Exploration of Word Embedding Initialization in Deep-Learning Tasks
                 if p.bias is not None:
