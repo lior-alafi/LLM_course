@@ -17,16 +17,18 @@ class TransformerDecoderBlock(nn.Module):
         if self.with_residuals:
             # TODO add residuals support.
             x=inputs
-            x =x+self.causal_attention(self.layer_norm_1(x))
+            sa,attn_maps=self.causal_attention(self.layer_norm_1(x))
+            x=x+sa
             x=x+self.mlp(self.layer_norm_2(x))
-            return x
+            return x, attn_maps
         else:
             x = inputs
             x = self.layer_norm_1(x)
-            x = self.causal_attention(x)
+            sa,attn_maps=self.causal_attention(x)
+            x=x+sa
             x = self.layer_norm_2(x)
             x = self.mlp(x)
-            return x
+            return x, attn_maps
 
 class Embed(nn.Module):
     def __init__(self, vocab_size: int, embed_size: int, max_context_len):
@@ -67,12 +69,17 @@ class TransformerLM(nn.Module):
         n_params = sum(p.numel() for p in self.parameters())
         print("Parameter count: %.2fM" % (n_params/1e6,))
 
-    def forward(self, inputs):
+    def forward(self, inputs,return_attn_maps=False):
         x = self.embed(inputs)
+        all_layers_maps=[]
         for layer in self.layers:
-            x = layer(x)
+            x, attn_maps = layer(x)
+            all_layers_maps.append(attn_maps)
         x = self.layer_norm(x)
         logits = self.word_prediction(x)
+        if return_attn_maps:
+            stacked_attn_maps = torch.stack(all_layers_maps, dim=1)
+            return logits, stacked_attn_maps
         return logits
 
     def init_weights(self):

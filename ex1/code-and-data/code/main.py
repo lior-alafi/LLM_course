@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import torch
+from visualize import extract_and_plot
 
 if __name__ == "__main__":
     import lm
@@ -9,8 +10,8 @@ if __name__ == "__main__":
     from transformer import TransformerLM
 
     import data
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(torch.cuda.is_available())
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     seq_len = 128
     batch_size = 64
@@ -43,15 +44,11 @@ if __name__ == "__main__":
     model = model.to(device)
 
     optimizer = optim.AdamW(model.parameters(), lr=learning_rate, betas=[0.9, 0.95])
-
-    model.train()
-
     num_batches = 0
     while True:
         for batch in data.batch_items(data_iter, batch_size):
             if num_batches >= num_batches_to_train:
                 break
-
             batch_x, batch_y = lm.batch_to_labeled_samples(batch)
             batch_x = batch_x.to(device)
             batch_y = batch_y.to(device)
@@ -66,14 +63,22 @@ if __name__ == "__main__":
             optimizer.step()
 
             num_batches += 1
+            
             if num_batches % 10 == 0:
                 print(f"Seen {num_batches} batches. last loss is: {loss.item()}")
                 if num_batches % 100 == 0:
                     for _ in range(1):
                         model.eval()
+                       
                         sampled = tokenizer.detokenize(
                             model.sample_continuation(tokenizer.tokenize("Hello"), 500)
                         )
+                        
                         model.train()
                         print(f"Model sample: '''{sampled}'''")
                     print("")
+                    if num_batches %1000==0:
+                        test_text="hello"
+                        extract_and_plot(model,tokenizer,prefix_text=test_text,save_path=f"attn_maps_step{num_batches}.png",
+                        max_len=32)
+

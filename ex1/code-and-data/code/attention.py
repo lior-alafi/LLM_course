@@ -53,15 +53,16 @@ def self_attention(v, A, mask = None):
         A = A.masked_fill(curr_mask==0,float('-inf'))
 
     #Softmax(QK^T/sqrt(D_K))@ V
-    sa = torch.matmul(F.softmax(A,dim=-1),v)
-    return sa
+    attn_weights=F.softmax(A,dim=-1)
+    sa = torch.matmul(attn_weights,v)
+    return sa, attn_weights
 
 
 def self_attention_layer(x, kqv_matrix, attention_mask):
     k, q, v = kqv(x, kqv_matrix)
     att = attention_scores(k, q)
-    sa = self_attention(v, att, attention_mask)
-    return sa
+    sa, attn_weights = self_attention(v, att, attention_mask)
+    return sa, attn_weights
 
 def multi_head_attention_layer(x, kqv_matrices, mask):
     # raise Exception("Not implemented.")
@@ -74,10 +75,12 @@ def multi_head_attention_layer(x, kqv_matrices, mask):
     # using a single multiplication with a single kqv_matrix (or a single kqv_tensor) and re-arranging the results afterwards.
     # If you want a challenge, you can try and implement this. You may need to change additional places in the code accordingly.
     
-    heads = [self_attention_layer(x,kqv_matrix,mask) for kqv_matrix in kqv_matrices]
+    results = [self_attention_layer(x,kqv_matrix,mask) for kqv_matrix in kqv_matrices]
+    heads,attn_weights=zip(*results)
     sa = torch.cat(heads,dim=-1)
     assert sa.size() == x.size()
-    return sa
+    attn_maps=torch.stack(attn_weights,dim=1)
+    return sa, attn_maps
 
 
 class CausalSelfAttention(nn.Module):
@@ -95,5 +98,5 @@ class CausalSelfAttention(nn.Module):
         self.embed_dim = embed_dim
 
     def forward(self, x):
-        sa = multi_head_attention_layer(x, self.kqv_matrices, self.mask)
-        return sa
+        sa,attn_maps = multi_head_attention_layer(x, self.kqv_matrices, self.mask)
+        return sa,attn_maps
