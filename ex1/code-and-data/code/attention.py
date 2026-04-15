@@ -42,7 +42,7 @@ def create_causal_mask(embed_dim, n_heads, max_context_len):
     mask = torch.tril(torch.ones(max_context_len,max_context_len)) # TODO replace this line with the creation of a causal mask.
     return mask
 
-def self_attention(v, A, mask = None):
+def self_attention(v, A, mask = None, return_attn_maps=False):
     # TODO compute sa (corresponding to y in the assignemnt text).
     # This should take very few lines of code.
     # As usual, the dimensions of v and of sa are (b x n x d).
@@ -55,16 +55,23 @@ def self_attention(v, A, mask = None):
     #Softmax(QK^T/sqrt(D_K))@ V
     attn_weights=F.softmax(A,dim=-1)
     sa = torch.matmul(attn_weights,v)
-    return sa, attn_weights
+    if return_attn_maps:
+        return sa, attn_weights
+    else:
+        return sa
 
 
-def self_attention_layer(x, kqv_matrix, attention_mask):
+def self_attention_layer(x, kqv_matrix, attention_mask, return_attn_maps=False):
     k, q, v = kqv(x, kqv_matrix)
     att = attention_scores(k, q)
-    sa, attn_weights = self_attention(v, att, attention_mask)
-    return sa, attn_weights
+    if return_attn_maps:
+        sa, attn_weights = self_attention(v, att, attention_mask, return_attn_maps)
+        return sa, attn_weights
+    else:
+        sa = self_attention(v, att, attention_mask)
+        return sa
 
-def multi_head_attention_layer(x, kqv_matrices, mask):
+def multi_head_attention_layer(x, kqv_matrices, mask, return_attn_maps=False):
     # raise Exception("Not implemented.")
     B, N, D = x.size()
     # TODO implement multi-head attention.
@@ -74,13 +81,18 @@ def multi_head_attention_layer(x, kqv_matrices, mask):
     # There is also a tricker (but more efficient) version of multi-head attention, where we do all the computation
     # using a single multiplication with a single kqv_matrix (or a single kqv_tensor) and re-arranging the results afterwards.
     # If you want a challenge, you can try and implement this. You may need to change additional places in the code accordingly.
-    
-    results = [self_attention_layer(x,kqv_matrix,mask) for kqv_matrix in kqv_matrices]
-    heads,attn_weights=zip(*results)
-    sa = torch.cat(heads,dim=-1)
-    assert sa.size() == x.size()
-    attn_maps=torch.stack(attn_weights,dim=1)
-    return sa, attn_maps
+    if return_attn_maps:
+        results = [self_attention_layer(x,kqv_matrix,mask, return_attn_maps) for kqv_matrix in kqv_matrices]
+        heads,attn_weights=zip(*results)
+        sa = torch.cat(heads,dim=-1)
+        assert sa.size() == x.size()
+        attn_maps=torch.stack(attn_weights,dim=1)
+        return sa, attn_maps
+    else:
+        heads = [self_attention_layer(x,kqv_matrix,mask) for kqv_matrix in kqv_matrices]
+        sa = torch.cat(heads,dim=-1)
+        assert sa.size() == x.size()
+        return sa
 
 
 class CausalSelfAttention(nn.Module):
@@ -97,6 +109,10 @@ class CausalSelfAttention(nn.Module):
         self.n_heads = n_heads
         self.embed_dim = embed_dim
 
-    def forward(self, x):
-        sa,attn_maps = multi_head_attention_layer(x, self.kqv_matrices, self.mask)
-        return sa,attn_maps
+    def forward(self, x, return_attn_maps=False):
+        if return_attn_maps:
+            sa,attn_maps = multi_head_attention_layer(x, self.kqv_matrices, self.mask, return_attn_maps)
+            return sa,attn_maps
+        else:
+            sa = multi_head_attention_layer(x, self.kqv_matrices, self.mask)
+            return sa
