@@ -13,24 +13,33 @@ class TransformerDecoderBlock(nn.Module):
         self.layer_norm_2 = nn.LayerNorm(embed_size)
         self.with_residuals = with_residuals
 
-    def forward(self, inputs):
+    def forward(self, inputs, return_attn_maps=False):
         if self.with_residuals:
             # TODO add residuals support.
             x=inputs
-            sa,attn_maps=self.causal_attention(self.layer_norm_1(x))
+            if return_attn_maps:
+                sa,attn_maps=self.causal_attention(self.layer_norm_1(x), return_attn_maps)
+            else:
+                sa=self.causal_attention(self.layer_norm_1(x))
             x=x+sa
             x=x+self.mlp(self.layer_norm_2(x))
-            return x, attn_maps
         else:
             x = inputs
             x = self.layer_norm_1(x)
-            sa,attn_maps=self.causal_attention(x)
+            if return_attn_maps:
+                sa,attn_maps=self.causal_attention(x, return_attn_maps)
+            else:
+                sa=self.causal_attention(x)
             x=x+sa
             x = self.layer_norm_2(x)
-            x = self.mlp(x)
+            x =x+ self.mlp(x)
+        if return_attn_maps:
             return x, attn_maps
+        else:
+            return x
 
 class Embed(nn.Module):
+
     def __init__(self, vocab_size: int, embed_size: int, max_context_len):
         super().__init__()
         self.token_embeddings = nn.Embedding(vocab_size, embed_size) # TODO set the right values
@@ -73,8 +82,11 @@ class TransformerLM(nn.Module):
         x = self.embed(inputs)
         all_layers_maps=[]
         for layer in self.layers:
-            x, attn_maps = layer(x)
-            all_layers_maps.append(attn_maps)
+            if return_attn_maps:
+                x, attn_maps = layer(x, return_attn_maps=True)
+                all_layers_maps.append(attn_maps)
+            else:
+                x = layer(x)
         x = self.layer_norm(x)
         logits = self.word_prediction(x)
         if return_attn_maps:

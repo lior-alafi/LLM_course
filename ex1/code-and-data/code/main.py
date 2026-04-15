@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import torch
 from visualize import extract_and_plot
+import lm
+import torch
+from torch import nn, optim
+from transformer import TransformerLM
+import data
 
 if __name__ == "__main__":
-    import lm
-    import torch
-    from torch import nn, optim
-    from transformer import TransformerLM
 
-    import data
     print(torch.cuda.is_available())
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
