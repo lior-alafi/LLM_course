@@ -34,6 +34,7 @@ class CharTokenizer:
 
     def tokenize(self, text: str) -> list[int]:
         seq: list[str] = self._tokenize_to_symbols(text)
+        # print(self.stoi)
         return [self.stoi[s] for s in seq]
 
     def detokenize(self, tokens: list[int], keep_symbols = True) -> str:
