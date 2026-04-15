@@ -3,7 +3,7 @@ from datetime import datetime
 
 import torch
 from matplotlib import pyplot as plt
-
+import os
 
 
 def _sanitize_value_for_filename(v):
@@ -235,3 +235,48 @@ def parameters(seq_len, batch_size, n_layers, n_heads, embed_size, mlp_hidden_si
         }
 
 
+
+def load_best_model(model_class, params=None, model_path=None, out_dir=".", device=None, strict=True):
+    """
+    Loads a model checkpoint saved by save_best_model()
+
+    Args:
+        model_class: model class (e.g., MyModel)
+        params: if None, will be loaded from checkpoint
+        model_path: full path to checkpoint file
+        out_dir: directory where model is stored
+        device: torch.device (if None -> auto-detect)
+        strict: whether to strictly enforce state_dict matching
+
+    Returns:
+        model, checkpoint
+
+
+    example:
+    model, ckpt = load_best_model(
+    TransformerLM,
+    model_path="model.pth",
+    device=device
+)
+    """
+
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    if model_path is None:
+        if params is None:
+            raise ValueError("If model_path is None, params must be provided.")
+        exp_name = experiment_name(params)
+        model_path = os.path.join(out_dir, f"best_model_{exp_name}.pth")
+
+    checkpoint = torch.load(model_path, map_location=device)
+
+    if params is None:
+        params = checkpoint['params']
+
+    model = model_class(**params)
+    model.load_state_dict(checkpoint['model_state_dict'], strict=strict)
+    model.to(device)
+    model.eval()
+
+    return model, checkpoint
