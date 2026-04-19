@@ -42,7 +42,7 @@ def create_causal_mask(embed_dim, n_heads, max_context_len):
     mask = torch.tril(torch.ones(max_context_len,max_context_len)) # TODO replace this line with the creation of a causal mask.
     return mask
 
-def self_attention(v, A, mask = None, return_attn_maps=False):
+def self_attention(v, A, mask = None, return_attn_maps=False,dropout_layer=None):
     # TODO compute sa (corresponding to y in the assignemnt text).
     # This should take very few lines of code.
     # As usual, the dimensions of v and of sa are (b x n x d).
@@ -51,27 +51,27 @@ def self_attention(v, A, mask = None, return_attn_maps=False):
         #avoid size inconsistencies and make sure the same device is being used
         curr_mask = mask[:A.size(-2), :A.size(-1)].to(A.device)
         A = A.masked_fill(curr_mask==0,float('-inf'))
-
-    #Softmax(QK^T/sqrt(D_K))@ V
     attn_weights=F.softmax(A,dim=-1)
-    sa = torch.matmul(attn_weights,v)
+    if dropout_layer is not None:
+        attn_weights=dropout_layer(attn_weights)
+    sa = attn_weights@v
     if return_attn_maps:
         return sa, attn_weights
     else:
         return sa
 
 
-def self_attention_layer(x, kqv_matrix, attention_mask, return_attn_maps=False):
+def self_attention_layer(x, kqv_matrix, attention_mask, return_attn_maps=False,dropout_layer=None):
     k, q, v = kqv(x, kqv_matrix)
     att = attention_scores(k, q)
     if return_attn_maps:
-        sa, attn_weights = self_attention(v, att, attention_mask, return_attn_maps)
+        sa, attn_weights = self_attention(v, att, attention_mask, return_attn_maps,dropout_layer)
         return sa, attn_weights
     else:
-        sa = self_attention(v, att, attention_mask)
+        sa = self_attention(v, att, attention_mask,dropout_layer=dropout_layer)
         return sa
 
-def multi_head_attention_layer(x, kqv_matrices, mask, return_attn_maps=False):
+def multi_head_attention_layer(x, kqv_matrices, mask, return_attn_maps=False,dropout_layer=None):
     # raise Exception("Not implemented.")
     B, N, D = x.size()
     # TODO implement multi-head attention.
@@ -82,21 +82,21 @@ def multi_head_attention_layer(x, kqv_matrices, mask, return_attn_maps=False):
     # using a single multiplication with a single kqv_matrix (or a single kqv_tensor) and re-arranging the results afterwards.
     # If you want a challenge, you can try and implement this. You may need to change additional places in the code accordingly.
     if return_attn_maps:
-        results = [self_attention_layer(x,kqv_matrix,mask, return_attn_maps) for kqv_matrix in kqv_matrices]
+        results = [self_attention_layer(x,kqv_matrix,mask, return_attn_maps,dropout_layer) for kqv_matrix in kqv_matrices]
         heads,attn_weights=zip(*results)
         sa = torch.cat(heads,dim=-1)
         assert sa.size() == x.size()
         attn_maps=torch.stack(attn_weights,dim=1)
         return sa, attn_maps
     else:
-        heads = [self_attention_layer(x,kqv_matrix,mask) for kqv_matrix in kqv_matrices]
+        heads = [self_attention_layer(x,kqv_matrix,mask,dropout_layer=dropout_layer) for kqv_matrix in kqv_matrices]
         sa = torch.cat(heads,dim=-1)
         assert sa.size() == x.size()
         return sa
 
 
 class CausalSelfAttention(nn.Module):
-    def __init__(self, embed_dim, n_heads, max_context_len):
+    def __init__(self, embed_dim, n_heads, max_context_len,dropout:float=0.1):
         super().__init__()
         assert embed_dim % n_heads == 0
         # the linear layers used for k, q, v computations:
@@ -108,11 +108,12 @@ class CausalSelfAttention(nn.Module):
         self.register_buffer("mask", mask)
         self.n_heads = n_heads
         self.embed_dim = embed_dim
+        self.dropout_layer=nn.Dropout(p=dropout)
 
     def forward(self, x, return_attn_maps=False):
         if return_attn_maps:
-            sa,attn_maps = multi_head_attention_layer(x, self.kqv_matrices, self.mask, return_attn_maps)
+            sa,attn_maps = multi_head_attention_layer(x, self.kqv_matrices, self.mask, return_attn_maps,self.dropout_layer)
             return sa,attn_maps
         else:
-            sa = multi_head_attention_layer(x, self.kqv_matrices, self.mask)
+            sa = multi_head_attention_layer(x, self.kqv_matrices, self.mask,dropout_layer=self.dropout_layer)
             return sa
