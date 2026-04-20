@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
 
 
-    while True:
+for i in range(30):
 
         best_val_loss = 1000
         val_losses = []
@@ -51,11 +51,11 @@ if __name__ == "__main__":
 
         num_batches = 0
         params = parameters(
-            seq_len=[128,256],
+            seq_len=[128],
             batch_size=[32, 64,128],
             n_layers=[4, 6, 8],
             n_heads=[4, 6, 8],
-            embed_size=[128, 192, 256, 384],
+            embed_size=[64,128, 192, 256, 384],
             mlp_hidden_size=lambda d: d * 4,
             learning_rate=learning_rate
         )

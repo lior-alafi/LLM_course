@@ -2,6 +2,10 @@ import torch
 import attention
 import torch.nn as nn
 from transformer import TransformerLM
+from data import load_data
+from utils import load_best_model
+from visualize import extract_and_plot2
+
 
 def test_attention_scores():
     # fill in values for the a, b and expected_output tensor.
@@ -60,5 +64,90 @@ def test_init_weights_via_modules():
                 if module.bias is not None:
                     nn.init.zeros_(module.bias)
 
+import os
+def load_best_model_from_dir(models_dir, data_path="../data/en/", device=None):
+    tokenizer, tokenized_data = load_data(data_path)
+
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    elif isinstance(device, str):
+        device = torch.device(device)
+
+    best_ckpt = None
+    best_path = None
+    best_val_loss = float("inf")
+
+    for fname in os.listdir(models_dir):
+        if not fname.endswith(".pth"):
+            continue
+
+        full_path = os.path.join(models_dir, fname)
+
+        try:
+            ckpt = torch.load(full_path, map_location="cpu")
+        except Exception as e:
+            print(f"Skipping {fname}: {e}")
+            continue
+
+        if not isinstance(ckpt, dict):
+            continue
+
+        if "best" not in ckpt or "params" not in ckpt or "model_state_dict" not in ckpt:
+            continue
+
+        if ckpt.get("metric_type", "val_loss") != "val_loss":
+            continue
+
+        curr_val_loss = ckpt["best"]
+
+        if curr_val_loss < best_val_loss:
+            best_val_loss = curr_val_loss
+            best_ckpt = ckpt
+            best_path = full_path
+
+    if best_ckpt is None:
+        raise ValueError(f"No valid checkpoint found in: {models_dir}")
+
+    params = best_ckpt["params"]
+
+    model = TransformerLM(
+        n_layers=params["n_layers"],
+        n_heads=params["n_heads"],
+        embed_size=params["embed_size"],
+        max_context_len=params["seq_len"],
+        vocab_size=tokenizer.vocab_size(),
+        mlp_hidden_size=params["mlp_hidden_size"],
+        with_residuals=True,
+    )
+
+    model.load_state_dict(best_ckpt["model_state_dict"])
+    model.to(device)
+    model.eval()
+
+    print("Loaded best model:")
+    print(f"path: {best_path}")
+    print(f"val_loss: {best_val_loss}")
+    print(f"params: {params}")
+
+    return model, tokenizer, best_ckpt, best_path
+
+
+def test_best_model_attn():
+    models_dir = r"C:\Users\liora\Documents\לימודים\תואר שני\שנה 2\סמסטר ב\טקסטים ורצפים\ex\ex1\code-and-data\models\eng\v1"
+
+    model, tokenizer, ckpt, path = load_best_model_from_dir(
+        models_dir=models_dir,
+        data_path="../data/en/",
+    )
+
+    extract_and_plot2(
+        model,
+        tokenizer,
+        prefix_text="For never was a story of more woe than this of Juliet and her Romeo",
+        save_path="../attn_maps/attention_map3.png",
+        max_len=32,
+    )
+
+test_best_model_attn()
 # test_init_weights_via_modules()           
 # test_attention_scores()
