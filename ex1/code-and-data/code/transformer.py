@@ -5,15 +5,21 @@ import attention
 import mlp
 
 class TransformerDecoderBlock(nn.Module):
-    def __init__(self, n_heads: int, embed_size: int, mlp_hidden_size: int, max_context_len, with_residuals: bool = False,dropout:float=0.1,attn_dropout:float=0.1):
+    def __init__(self, n_heads: int, embed_size: int, mlp_hidden_size: int, max_context_len, with_residuals: bool = False,dropout:float=None,attn_dropout:float=None):
         super().__init__()
         self.causal_attention = attention.CausalSelfAttention(embed_size, n_heads, max_context_len)
         self.mlp = mlp.MLP(embed_size, mlp_hidden_size)
         self.layer_norm_1 = nn.LayerNorm(embed_size)
         self.layer_norm_2 = nn.LayerNorm(embed_size)
         self.with_residuals = with_residuals
-        self.dropout_layer=nn.Dropout(p=dropout)
-        self.attn_dropout_layer=nn.Dropout(p=attn_dropout)
+        if dropout is not None:
+            self.dropout_layer=nn.Dropout(p=dropout)
+        else:
+            self.dropout_layer=None
+        if attn_dropout is not None:
+            self.attn_dropout_layer=nn.Dropout(p=attn_dropout)
+        else:
+            self.attn_dropout_layer=None
 
     def forward(self, inputs, return_attn_maps=False):
         if self.with_residuals:
@@ -22,7 +28,10 @@ class TransformerDecoderBlock(nn.Module):
                 sa,attn_maps=self.causal_attention(self.layer_norm_1(x), return_attn_maps,self.attn_dropout_layer)
             else:
                 sa=self.causal_attention(self.layer_norm_1(x))
-            x=x+self.dropout_layer(sa)
+            if self.dropout_layer is not None:
+                x=x+self.dropout_layer(sa)
+            else:
+                x=x+sa
             x=x+self.mlp(self.layer_norm_2(x))
         else:
             x = inputs
@@ -31,7 +40,10 @@ class TransformerDecoderBlock(nn.Module):
                 sa,attn_maps=self.causal_attention(x, return_attn_maps,self.attn_dropout_layer)
             else:
                 sa=self.causal_attention(x)
-            x=self.dropout_layer(sa)
+            if self.dropout_layer is not None:
+                x=self.dropout_layer(sa)
+            else:
+                x=sa
             x =self.layer_norm_2(x)
             x =self.mlp(x)
         if return_attn_maps:
@@ -67,7 +79,7 @@ class TransformerLM(nn.Module):
             vocab_size: int,
             mlp_hidden_size: int,
             with_residuals: bool,
-            dropout:list[float]=[0.1,0.1,0.1],
+            dropout:list[float]=[None,None,None],
             ):
         super().__init__()
         self.embed = Embed(vocab_size, embed_size, max_context_len)
@@ -77,14 +89,18 @@ class TransformerLM(nn.Module):
         self.word_prediction = nn.Linear(embed_size, vocab_size)
         self.max_context_len = max_context_len
         self.init_weights()
-        self.dropout=nn.Dropout(p=dropout_1)
+        if dropout_1 is not None:
+            self.dropout=nn.Dropout(p=dropout_1)
+        else:
+            self.dropout=None
 
         n_params = sum(p.numel() for p in self.parameters())
         print("Parameter count: %.2fM" % (n_params/1e6,))
 
     def forward(self, inputs,return_attn_maps=False):
         x = self.embed(inputs)
-        x=self.dropout(x)
+        if self.dropout is not None:
+            x=self.dropout(x)
         all_layers_maps=[]
         for layer in self.layers:
             if return_attn_maps:
