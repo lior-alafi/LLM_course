@@ -236,32 +236,39 @@ def parameters(seq_len, batch_size, n_layers, n_heads, embed_size, mlp_hidden_si
 
 
 
-def load_best_model(model_class, params=None, model_path=None, out_dir=".", device=None, strict=True):
+def load_best_model(
+    model_class,
+    params=None,
+    model_path=None,
+    out_dir=".",
+    device=None,
+    strict=True,
+    model_kwargs=None,
+):
     """
-    Loads a model checkpoint saved by save_best_model()
+    Loads a model checkpoint saved by save_best_model().
 
     Args:
-        model_class: model class (e.g., MyModel)
-        params: if None, will be loaded from checkpoint
-        model_path: full path to checkpoint file
-        out_dir: directory where model is stored
-        device: torch.device (if None -> auto-detect)
-        strict: whether to strictly enforce state_dict matching
+        model_class: model class, e.g. TransformerLM
+        params: optional params dict. If None, loaded from checkpoint
+        model_path: optional full path to checkpoint file
+        out_dir: directory containing checkpoint if model_path is None
+        device: torch.device or string. If None -> auto detect
+        strict: passed to load_state_dict
+        model_kwargs: extra kwargs required by the model constructor
+                     such as vocab_size, with_residuals, etc.
 
     Returns:
         model, checkpoint
-
-
-    example:
-    model, ckpt = load_best_model(
-    TransformerLM,
-    model_path="model.pth",
-    device=device
-)
     """
 
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    elif isinstance(device, str):
+        device = torch.device(device)
+
+    if model_kwargs is None:
+        model_kwargs = {}
 
     if model_path is None:
         if params is None:
@@ -272,11 +279,26 @@ def load_best_model(model_class, params=None, model_path=None, out_dir=".", devi
     checkpoint = torch.load(model_path, map_location=device)
 
     if params is None:
-        params = checkpoint['params']
+        params = checkpoint["params"]
 
-    model = model_class(**params)
-    model.load_state_dict(checkpoint['model_state_dict'], strict=strict)
+    constructor_kwargs = dict(model_kwargs)
+
+    if "n_layers" in params:
+        constructor_kwargs["n_layers"] = params["n_layers"]
+    if "n_heads" in params:
+        constructor_kwargs["n_heads"] = params["n_heads"]
+    if "embed_size" in params:
+        constructor_kwargs["embed_size"] = params["embed_size"]
+    if "seq_len" in params:
+        constructor_kwargs["max_context_len"] = params["seq_len"]
+    if "mlp_hidden_size" in params:
+        constructor_kwargs["mlp_hidden_size"] = params["mlp_hidden_size"]
+
+    model = model_class(**constructor_kwargs)
+    model.load_state_dict(checkpoint["model_state_dict"], strict=strict)
     model.to(device)
     model.eval()
 
     return model, checkpoint
+
+
