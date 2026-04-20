@@ -96,7 +96,7 @@ def multi_head_attention_layer(x, kqv_matrices, mask, return_attn_maps=False,dro
 
 
 class CausalSelfAttention(nn.Module):
-    def __init__(self, embed_dim, n_heads, max_context_len,dropout:float=None):
+    def __init__(self, embed_dim, n_heads, max_context_len,dropout_layer=None):
         super().__init__()
         assert embed_dim % n_heads == 0
         # the linear layers used for k, q, v computations:
@@ -108,10 +108,7 @@ class CausalSelfAttention(nn.Module):
         self.register_buffer("mask", mask)
         self.n_heads = n_heads
         self.embed_dim = embed_dim
-        if dropout is not None:
-            self.dropout_layer=nn.Dropout(p=dropout)
-        else:
-            self.dropout_layer=None
+        self.dropout_layer=dropout_layer
 
     def forward(self, x, return_attn_maps=False):
         if return_attn_maps:

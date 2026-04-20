@@ -7,11 +7,6 @@ import mlp
 class TransformerDecoderBlock(nn.Module):
     def __init__(self, n_heads: int, embed_size: int, mlp_hidden_size: int, max_context_len, with_residuals: bool = False,dropout:float=None,attn_dropout:float=None):
         super().__init__()
-        self.causal_attention = attention.CausalSelfAttention(embed_size, n_heads, max_context_len)
-        self.mlp = mlp.MLP(embed_size, mlp_hidden_size)
-        self.layer_norm_1 = nn.LayerNorm(embed_size)
-        self.layer_norm_2 = nn.LayerNorm(embed_size)
-        self.with_residuals = with_residuals
         if dropout is not None:
             self.dropout_layer=nn.Dropout(p=dropout)
         else:
@@ -20,12 +15,18 @@ class TransformerDecoderBlock(nn.Module):
             self.attn_dropout_layer=nn.Dropout(p=attn_dropout)
         else:
             self.attn_dropout_layer=None
+        self.causal_attention = attention.CausalSelfAttention(embed_size, n_heads, max_context_len,self.attn_dropout_layer)
+        self.mlp = mlp.MLP(embed_size, mlp_hidden_size)
+        self.layer_norm_1 = nn.LayerNorm(embed_size)
+        self.layer_norm_2 = nn.LayerNorm(embed_size)
+        self.with_residuals = with_residuals
+
 
     def forward(self, inputs, return_attn_maps=False):
         if self.with_residuals:
             x=inputs
             if return_attn_maps:
-                sa,attn_maps=self.causal_attention(self.layer_norm_1(x), return_attn_maps,self.attn_dropout_layer)
+                sa,attn_maps=self.causal_attention(self.layer_norm_1(x), return_attn_maps)
             else:
                 sa=self.causal_attention(self.layer_norm_1(x))
             if self.dropout_layer is not None:
@@ -37,7 +38,7 @@ class TransformerDecoderBlock(nn.Module):
             x = inputs
             x = self.layer_norm_1(x)
             if return_attn_maps:
-                sa,attn_maps=self.causal_attention(x, return_attn_maps,self.attn_dropout_layer)
+                sa,attn_maps=self.causal_attention(x, return_attn_maps)
             else:
                 sa=self.causal_attention(x)
             if self.dropout_layer is not None:
