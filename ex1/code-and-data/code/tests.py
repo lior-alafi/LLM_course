@@ -118,6 +118,7 @@ def load_best_model_from_dir(models_dir, data_path="../data/en/", device=None):
         vocab_size=tokenizer.vocab_size(),
         mlp_hidden_size=params["mlp_hidden_size"],
         with_residuals=True,
+        dropout=params.get("dropout", [None, None, None]),
     )
 
     model.load_state_dict(best_ckpt["model_state_dict"])

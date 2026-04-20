@@ -4,6 +4,9 @@ from datetime import datetime
 import torch
 from matplotlib import pyplot as plt
 import os
+import random
+import random
+import math
 
 
 def _sanitize_value_for_filename(v):
@@ -16,7 +19,7 @@ def _sanitize_value_for_filename(v):
 
 
 def experiment_name(params):
-    return (
+    name = (
         f"seq{_sanitize_value_for_filename(params['seq_len'])}"
         f"_bs{_sanitize_value_for_filename(params['batch_size'])}"
         f"_L{_sanitize_value_for_filename(params['n_layers'])}"
@@ -25,6 +28,16 @@ def experiment_name(params):
         f"_M{_sanitize_value_for_filename(params['mlp_hidden_size'])}"
         f"_lr{_sanitize_value_for_filename(params['learning_rate'])}"
     )
+
+    if "dropout" in params and params["dropout"] is not None:
+        d0, d1, d2 = params["dropout"]
+        name += (
+            f"_D{_sanitize_value_for_filename(d0)}"
+            f"_{_sanitize_value_for_filename(d1)}"
+            f"_{_sanitize_value_for_filename(d2)}"
+        )
+
+    return name
 
 
 def save_best_model(model, params, best, metric_type='val_loss', epoch=0, out_dir="."):
@@ -43,13 +56,11 @@ def save_best_model(model, params, best, metric_type='val_loss', epoch=0, out_di
     print(f"Saved best model to {model_path}")
 
 
-
-def loss_plotter(train_losses,val_losses,params, out_dir="."):
+def loss_plotter(train_losses, val_losses, params, out_dir="."):
     exp_name = experiment_name(params)
-
-    # plotting after training ends
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     plot_path = f"{out_dir}/loss_plot_{exp_name}_{timestamp}.png"
+
     fig, axes = plt.subplots(2, 1, figsize=(10, 8))
 
     axes[0].plot(train_losses)
@@ -60,12 +71,15 @@ def loss_plotter(train_losses,val_losses,params, out_dir="."):
 
     axes[1].plot(val_losses)
     axes[1].set_title("Validation Loss")
-    axes[1].set_xlabel("Validation step (every 100 batches)")
+    axes[1].set_xlabel("Validation step")
     axes[1].set_ylabel("Loss")
     axes[1].grid(True)
 
     fig.suptitle(
-        f"Training Curves | layers={params['n_layers']}, heads={params['n_heads']}, embed={params['embed_size']}, lr={params['learning_rate']}",
+        f"Training Curves | layers={params['n_layers']}, "
+        f"heads={params['n_heads']}, "
+        f"embed={params['embed_size']}, "
+        f"lr={params['learning_rate']}",
         fontsize=12
     )
     plt.tight_layout(rect=[0, 0, 1, 0.96])
@@ -76,7 +90,6 @@ def loss_plotter(train_losses,val_losses,params, out_dir="."):
 
 
 def split_data(tokenized_data, seq_len, train_ratio=0.9):
-    #single file source
     if len(tokenized_data) == 1:
         full_seq = tokenized_data[0]
 
@@ -84,16 +97,12 @@ def split_data(tokenized_data, seq_len, train_ratio=0.9):
             raise ValueError("Sequence too short for splitting")
 
         split_idx = int(train_ratio * len(full_seq))
-
-        # avoid empty parts
         split_idx = max(seq_len + 1, split_idx)
         split_idx = min(len(full_seq) - (seq_len + 1), split_idx)
 
         train_data = [full_seq[:split_idx]]
         val_data = [full_seq[split_idx:]]
-
     else:
-
         split_idx = int(train_ratio * len(tokenized_data))
 
         if split_idx == 0:
@@ -114,30 +123,19 @@ def split_data(tokenized_data, seq_len, train_ratio=0.9):
     return train_data, val_data
 
 
-import random
-
-import random
-import math
-
-
 def _sample_param(x, param_name=None):
-    # ערך בודד
     if not isinstance(x, (list, tuple)):
         return x
 
-    # רשימה -> בחירה אקראית
     if isinstance(x, list):
         if len(x) == 0:
             return None
         return random.choice(x)
 
-    # tuple באורך 2 -> טווח
     if isinstance(x, tuple) and len(x) == 2:
         a, b = x
 
-        # learning_rate -> log-uniform
         if param_name == "learning_rate":
-            # תיקון ערכים לא חיוביים
             a = max(a, 1e-8)
             b = max(b, 1e-8)
 
@@ -148,23 +146,29 @@ def _sample_param(x, param_name=None):
             log_high = math.log10(high)
             return 10 ** random.uniform(log_low, log_high)
 
-        # int range
         if isinstance(a, int) and isinstance(b, int):
             low = min(a, b)
             high = max(a, b)
             return random.randint(low, high)
 
-        # float range
         if isinstance(a, (int, float)) and isinstance(b, (int, float)):
             low = min(a, b)
             high = max(a, b)
             return random.uniform(low, high)
 
-    # fallback
     return x
 
 
-def parameters(seq_len, batch_size, n_layers, n_heads, embed_size, mlp_hidden_size, learning_rate):
+def parameters(
+    seq_len,
+    batch_size,
+    n_layers,
+    n_heads,
+    embed_size,
+    mlp_hidden_size,
+    learning_rate,
+    dropout=None,
+):
     while True:
         chosen_seq_len = _sample_param(seq_len, "seq_len")
         chosen_batch_size = _sample_param(batch_size, "batch_size")
@@ -173,7 +177,6 @@ def parameters(seq_len, batch_size, n_layers, n_heads, embed_size, mlp_hidden_si
         chosen_embed_size = _sample_param(embed_size, "embed_size")
         chosen_learning_rate = _sample_param(learning_rate, "learning_rate")
 
-        # fallbackים אם משהו יצא None
         if chosen_seq_len is None:
             chosen_seq_len = 128
         if chosen_batch_size is None:
@@ -187,18 +190,17 @@ def parameters(seq_len, batch_size, n_layers, n_heads, embed_size, mlp_hidden_si
         if chosen_learning_rate is None:
             chosen_learning_rate = 1e-4
 
-        # תקן קומבינציה לא חוקית של heads/embed
         if chosen_n_heads <= 0:
             chosen_n_heads = 1
 
         if chosen_embed_size < chosen_n_heads:
             chosen_embed_size = chosen_n_heads
 
-        # תקן embed_size כך שיהיה מתחלק ב-n_heads
         if chosen_embed_size % chosen_n_heads != 0:
-            chosen_embed_size = ((chosen_embed_size + chosen_n_heads - 1) // chosen_n_heads) * chosen_n_heads
+            chosen_embed_size = (
+                (chosen_embed_size + chosen_n_heads - 1) // chosen_n_heads
+            ) * chosen_n_heads
 
-        # mlp_hidden_size
         if callable(mlp_hidden_size):
             chosen_mlp_hidden_size = mlp_hidden_size(chosen_embed_size)
         else:
@@ -206,7 +208,6 @@ def parameters(seq_len, batch_size, n_layers, n_heads, embed_size, mlp_hidden_si
             if chosen_mlp_hidden_size is None:
                 chosen_mlp_hidden_size = chosen_embed_size * 4
 
-        # הגנות בסיסיות
         chosen_seq_len = max(2, int(chosen_seq_len))
         chosen_batch_size = max(1, int(chosen_batch_size))
         chosen_n_layers = max(1, int(chosen_n_layers))
@@ -215,7 +216,6 @@ def parameters(seq_len, batch_size, n_layers, n_heads, embed_size, mlp_hidden_si
         chosen_mlp_hidden_size = max(1, int(chosen_mlp_hidden_size))
         chosen_learning_rate = max(1e-8, float(chosen_learning_rate))
 
-        # התאמת batch size למודלים גדולים
         model_size_score = chosen_n_layers * chosen_embed_size
 
         if model_size_score >= 3000:
@@ -224,16 +224,20 @@ def parameters(seq_len, batch_size, n_layers, n_heads, embed_size, mlp_hidden_si
         if model_size_score >= 5000:
             chosen_batch_size = min(chosen_batch_size, 16)
 
-        return {
+        params = {
             'seq_len': chosen_seq_len,
             'batch_size': chosen_batch_size,
             'n_layers': chosen_n_layers,
             'n_heads': chosen_n_heads,
             'embed_size': chosen_embed_size,
             'mlp_hidden_size': chosen_mlp_hidden_size,
-            'learning_rate': chosen_learning_rate
+            'learning_rate': chosen_learning_rate,
+            'dropout':dropout
         }
 
+
+
+        return params
 
 
 def load_best_model(
@@ -245,23 +249,6 @@ def load_best_model(
     strict=True,
     model_kwargs=None,
 ):
-    """
-    Loads a model checkpoint saved by save_best_model().
-
-    Args:
-        model_class: model class, e.g. TransformerLM
-        params: optional params dict. If None, loaded from checkpoint
-        model_path: optional full path to checkpoint file
-        out_dir: directory containing checkpoint if model_path is None
-        device: torch.device or string. If None -> auto detect
-        strict: passed to load_state_dict
-        model_kwargs: extra kwargs required by the model constructor
-                     such as vocab_size, with_residuals, etc.
-
-    Returns:
-        model, checkpoint
-    """
-
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     elif isinstance(device, str):
@@ -293,6 +280,8 @@ def load_best_model(
         constructor_kwargs["max_context_len"] = params["seq_len"]
     if "mlp_hidden_size" in params:
         constructor_kwargs["mlp_hidden_size"] = params["mlp_hidden_size"]
+    if "dropout" in params:
+        constructor_kwargs["dropout"] = params["dropout"]
 
     model = model_class(**constructor_kwargs)
     model.load_state_dict(checkpoint["model_state_dict"], strict=strict)
@@ -300,5 +289,3 @@ def load_best_model(
     model.eval()
 
     return model, checkpoint
-
-

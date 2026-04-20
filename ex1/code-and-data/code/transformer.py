@@ -11,12 +11,8 @@ class TransformerDecoderBlock(nn.Module):
             self.dropout_layer = nn.Dropout(p=dropout)
         else:
             self.dropout_layer = None
-        if attn_dropout is not None:
-            self.attn_dropout_layer = nn.Dropout(p=attn_dropout)
-        else:
-            self.attn_dropout_layer = None
 
-        self.causal_attention = attention.CausalSelfAttention(embed_size, n_heads, max_context_len,self.attn_dropout_layer)
+        self.causal_attention = attention.CausalSelfAttention(embed_size, n_heads, max_context_len,attn_dropout)
         self.mlp = mlp.MLP(embed_size, mlp_hidden_size)
         self.layer_norm_1 = nn.LayerNorm(embed_size)
         self.layer_norm_2 = nn.LayerNorm(embed_size)
@@ -81,11 +77,13 @@ class TransformerLM(nn.Module):
             vocab_size: int,
             mlp_hidden_size: int,
             with_residuals: bool,
-            dropout:list[float]=[None,None,None],
+            dropout=[None,None,None],
             ):
         super().__init__()
         self.embed = Embed(vocab_size, embed_size, max_context_len)
-        dropout_1,dropout_2,dropout_3=dropout
+
+        dropout_1,dropout_2,dropout_3=dropout[0],dropout[1],dropout[2]
+
         self.layers = nn.ModuleList([TransformerDecoderBlock(n_heads, embed_size, mlp_hidden_size, max_context_len, with_residuals,dropout_2,dropout_3) for _ in range(n_layers)])
         self.layer_norm = nn.LayerNorm(embed_size)
         self.word_prediction = nn.Linear(embed_size, vocab_size)
