@@ -43,7 +43,6 @@ def create_causal_mask(embed_dim, n_heads, max_context_len):
     return mask
 
 def self_attention(v, A, mask = None, return_attn_maps=False,dropout_layer=None):
-    # TODO compute sa (corresponding to y in the assignemnt text).
     # This should take very few lines of code.
     # As usual, the dimensions of v and of sa are (b x n x d).
 
