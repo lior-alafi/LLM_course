@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import random
 import glob
 import json
+import re
 
 class CharTokenizer:
     def __init__(self):
@@ -13,6 +14,7 @@ class CharTokenizer:
         self.tokens = set()
         self.vocab = list(self.symbols)
         self.stoi = {s:i for i, s in enumerate(self.vocab)}
+        self.not_in_vocab = set()
 
     def pad_id(self): return self.stoi["<PAD>"]
 
@@ -21,10 +23,15 @@ class CharTokenizer:
     def vocab_size(self): return len(self.vocab)
         
     def train(self, sequences: list[str]) -> None:
+        not_in_vocab=[]
         for seq in sequences:
             for symbol in self._tokenize_to_symbols(seq):
-                self.tokens.add(symbol)
-
+                if re.match(r"^[a-zA-Z0-9\u0590-\u05FF.\!&\n?\-'\$\; \:\,]+$", symbol):
+                    self.tokens.add(symbol)
+                else:
+                    self.not_in_vocab.add(symbol)
+                    
+        # print(f"Symbols not in vocab: {self.not_in_vocab}")
         self.vocab = list(self.symbols) + list(sorted(self.tokens))
         self.stoi = {s:i for i, s in enumerate(self.vocab)}
 
@@ -35,7 +42,7 @@ class CharTokenizer:
     def tokenize(self, text: str) -> list[int]:
         seq: list[str] = self._tokenize_to_symbols(text)
         # print(self.stoi)
-        return [self.stoi[s] for s in seq]
+        return [self.stoi[s] for s in seq if s in self.stoi]
 
     def detokenize(self, tokens: list[int], keep_symbols = True) -> str:
         strs: list[str] = [self.vocab[t] for t in tokens]
@@ -76,13 +83,13 @@ class RandomOrderDataIterator:
 def load_data(path: str) -> [CharTokenizer, list[list[int]]]:
     tokenizer = CharTokenizer()
     for fname in glob.glob(f"{path}/*.txt"):
-        with open(fname) as fh:
+        with open(fname, encoding="utf-8") as fh:
             text = fh.read()
             tokenizer.train(text)
 
     data: list[list[int]] = []
     for fname in glob.glob(f"{path}/*.txt"):
-        with open(fname) as fh:
+        with open(fname, encoding="utf-8") as fh:
             text = fh.read()
             data.append(tokenizer.tokenize(text))
 
