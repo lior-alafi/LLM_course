@@ -8,13 +8,14 @@ class TransformerDecoderBlock(nn.Module):
     def __init__(self, n_heads: int, embed_size: int, mlp_hidden_size: int, max_context_len, with_residuals: bool = False,dropout:float=None,attn_dropout:float=None):
         super().__init__()
         if dropout is not None:
-            self.dropout_layer=nn.Dropout(p=dropout)
+            self.dropout_layer = nn.Dropout(p=dropout)
         else:
-            self.dropout_layer=None
+            self.dropout_layer = None
         if attn_dropout is not None:
-            self.attn_dropout_layer=nn.Dropout(p=attn_dropout)
+            self.attn_dropout_layer = nn.Dropout(p=attn_dropout)
         else:
-            self.attn_dropout_layer=None
+            self.attn_dropout_layer = None
+
         self.causal_attention = attention.CausalSelfAttention(embed_size, n_heads, max_context_len,self.attn_dropout_layer)
         self.mlp = mlp.MLP(embed_size, mlp_hidden_size)
         self.layer_norm_1 = nn.LayerNorm(embed_size)
@@ -118,7 +119,6 @@ class TransformerLM(nn.Module):
 
     def init_weights(self):
         # initialize weights
-        # TODO implement initialization logic for embeddings and linear layers.
         # The code break down the parameters by type (layer-norm, linear, embedding),
         # but can also condition on individual names, for example by checking pn.endswith(...).
 
@@ -154,7 +154,6 @@ class TransformerLM(nn.Module):
         return generated
 
     def better_sample_continuation(self, prefix: list[int], max_tokens_to_generate: int, temperature: float, topK: int) -> list[int]:
-        # TODO implement this.
         # Temperature should be the temperature in which you sample.
         # TopK indicates that we don't sample from the entire distribution, but only from the top k scoring tokens
         # for the given position.
