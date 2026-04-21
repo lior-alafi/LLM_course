@@ -16,8 +16,8 @@ if __name__ == "__main__":
 
     data_path = "../data/he/"
     gradient_clipping = 1.0
-    num_batches_to_train = 6000
-    num_trials = 30
+    num_batches_to_train = 600000
+    num_trials = 1 #30
 
     validate_every = 100
     sample_every = 100
@@ -35,15 +35,15 @@ if __name__ == "__main__":
         num_batches = 0
 
         params = parameters(
-            seq_len=[128,256],
-            batch_size=[32, 64, 128],
-            n_layers=[4, 6],
-            n_heads=[4, 6, 8],
-            embed_size=[64, 128, 192, 256, 384],
+            seq_len=128, #[128,256],
+            batch_size=128, #[32, 64, 128],
+            n_layers=6,#[4, 6],
+            n_heads=6,#[4, 6, 8],
+            embed_size=132,#[64, 128, 192, 256, 384],
             mlp_hidden_size=lambda d: d * 4,
-            learning_rate=(5e-7, 1e-4),
-            dropout=
-            [ random.choice([None,0.05,0.1]),random.choice([None,0.05,0.1]),random.choice([None,0.05,0.1])]
+            learning_rate=2.014037949e-5,#(5e-7, 1e-4),
+            dropout=[0.05,None,0.05]
+           # [ random.choice([None,0.05,0.1]),random.choice([None,0.05,0.1]),random.choice([None,0.05,0.1])]
         )
 
 
@@ -116,7 +116,7 @@ if __name__ == "__main__":
                 model.eval()
                 with torch.no_grad():
                     sampled = tokenizer.detokenize(
-                        model.sample_continuation(tokenizer.tokenize("Hello"), 500)
+                        model.sample_continuation(tokenizer.tokenize("שלום"), 500)
                     )
                 print(f"Model sample: '''{sampled}'''")
                 print("")

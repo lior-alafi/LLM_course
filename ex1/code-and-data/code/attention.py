@@ -107,7 +107,10 @@ class CausalSelfAttention(nn.Module):
         self.register_buffer("mask", mask)
         self.n_heads = n_heads
         self.embed_dim = embed_dim
-        self.dropout_layer=dropout_layer
+        if dropout_layer is None or isinstance(dropout_layer,nn.Dropout):
+            self.dropout_layer=dropout_layer
+        elif isinstance(dropout_layer,float):
+            self.dropout_layer = nn.Dropout(p=dropout_layer)
 
     def forward(self, x, return_attn_maps=False):
         if return_attn_maps:
