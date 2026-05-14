@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from transformer import TransformerLM
-
+from visualize import extract_and_plot2
 import data
 eng_data = "../data/en/"
 heb_data = "../data/he/"
@@ -36,18 +36,22 @@ def load_model(data_path, checkpoint_path):
 eng_model,eng_params,eng_best,tokenizer = load_model(eng_data,fp_eng)
 print(eng_params)
 print(eng_best)
+with torch.no_grad():
+    for text in ["where art thou"]:
+        print(f'prefix: {text}')
+        text = tokenizer.tokenize(text)
+        simple = tokenizer.detokenize(eng_model.sample_continuation(text, 256))
+        print(f'generated:\n{simple}')
+        print('#' * 10)
+        for temperature in np.arange(0.1,1.0,0.2):
+            print(f'temperature{temperature:.2f}')
+            complex=tokenizer.detokenize(eng_model.better_sample_continuation(text, 256,temperature,5))
 
-for temperature in np.arange(0.1,1.0,0.2):
-    print(f'temperature{temperature:.2f}')
-    with torch.no_grad():
-        for text in ['Hello','abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',"where art thou"]:
-            print(f'prefix: {text}')
-            text = tokenizer.tokenize(text)
-            simple=tokenizer.detokenize(eng_model.sample_continuation(text, 500))
-            complex=tokenizer.detokenize(eng_model.better_sample_continuation(text, 500,temperature,5))
-            print(simple)
-            print('#'*10)
-            print(complex)
+            print(f'generated:\n{complex}')
             print('*' * 10)
 
     print('-'*50)
+
+
+    for text in ['Hello', "where art thou"]:
+        extract_and_plot2(eng_model,tokenizer,text,f'../attn_maps/{text}')

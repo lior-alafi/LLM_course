@@ -14,11 +14,11 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    data_path = "../data/he/"
+    data_path = "../data/en/"
     gradient_clipping = 1.0
-    num_batches_to_train = 600000
-    num_trials = 1 #30
-
+    num_batches_to_train = 6000
+    num_trials = 1
+    EPOCHS = 1
     validate_every = 100
     sample_every = 100
     log_every = 10
@@ -33,18 +33,27 @@ if __name__ == "__main__":
         val_losses = []
         train_losses = []
         num_batches = 0
-
         params = parameters(
-            seq_len=128, #[128,256],
-            batch_size=128, #[32, 64, 128],
-            n_layers=6,#[4, 6],
-            n_heads=6,#[4, 6, 8],
-            embed_size=132,#[64, 128, 192, 256, 384],
-            mlp_hidden_size=lambda d: d * 4,
-            learning_rate=2.014037949e-5,#(5e-7, 1e-4),
-            dropout=[0.05,None,0.05]
-           # [ random.choice([None,0.05,0.1]),random.choice([None,0.05,0.1]),random.choice([None,0.05,0.1])]
+        seq_len=128,
+        batch_size = 32 , # או 32 אם צריך זיכרון
+        n_layers = 4,
+        n_heads = 4,
+        embed_size = 132 , # או 144/156 אם אתה רוצה מספר יותר נוח
+        mlp_hidden_size = lambda d: d * 4,
+        learning_rate = 5e-4,
+        dropout = [0.2, 0.2, 0.2],
         )
+        # params = parameters(
+        #     seq_len=128, #[128,256],
+        #     batch_size=128, #[32, 64, 128],
+        #     n_layers=6,#[4, 6],
+        #     n_heads=6,#[4, 6, 8],
+        #     embed_size=132,#[64, 128, 192, 256, 384],
+        #     mlp_hidden_size=lambda d: d * 4,
+        #     learning_rate=2.014037949e-5,#(5e-7, 1e-4),
+        #     dropout=[0.05,None,0.05]
+        #    # [ random.choice([None,0.05,0.1]),random.choice([None,0.05,0.1]),random.choice([None,0.05,0.1])]
+        # )
 
 
         seq_len = params["seq_len"]
@@ -66,7 +75,7 @@ if __name__ == "__main__":
             max_context_len=params["seq_len"],
             vocab_size=tokenizer.vocab_size(),
             mlp_hidden_size=params["mlp_hidden_size"],
-            with_residuals=True,
+            with_residuals=False,
             dropout=params["dropout"],
         )
 
@@ -84,81 +93,82 @@ if __name__ == "__main__":
             factor=0.5,
             patience=5,
             threshold=1e-4,
-            min_lr=1e-7,
+            min_lr=1e-9,
         )
 
         model.train()
+        for epoch in range(EPOCHS):
+            for batch in data.batch_items(train_iter, batch_size):
+                if num_batches >= num_batches_to_train:
+                    break
 
-        for batch in data.batch_items(train_iter, batch_size):
-            if num_batches >= num_batches_to_train:
-                break
+                batch_x, batch_y = lm.batch_to_labeled_samples(batch)
+                batch_x = batch_x.to(device)
+                batch_y = batch_y.to(device)
 
-            batch_x, batch_y = lm.batch_to_labeled_samples(batch)
-            batch_x = batch_x.to(device)
-            batch_y = batch_y.to(device)
+                logits = model(batch_x)
+                loss = lm.compute_loss(logits, batch_y)
 
-            logits = model(batch_x)
-            loss = lm.compute_loss(logits, batch_y)
+                optimizer.zero_grad(set_to_none=True)
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clipping)
+                optimizer.step()
 
-            optimizer.zero_grad(set_to_none=True)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clipping)
-            optimizer.step()
+                num_batches += 1
 
-            num_batches += 1
+                if num_batches % log_every == 0:
+                    train_loss_value = loss.item()
+                    train_losses.append(train_loss_value)
+                    print(f"Seen {num_batches} batches. Last train loss: {train_loss_value:.6f}")
 
-            if num_batches % log_every == 0:
-                train_loss_value = loss.item()
-                train_losses.append(train_loss_value)
-                print(f"Seen {num_batches} batches. Last train loss: {train_loss_value:.6f}")
+                if num_batches % sample_every == 0:
+                    model.eval()
+                    with torch.no_grad():
+                        sampled = tokenizer.detokenize(
+                            model.sample_continuation(tokenizer.tokenize("Hello"), 500)
+                        )
+                    print(f"Model sample: '''{sampled}'''")
+                    print("")
+                    model.train()
 
-            if num_batches % sample_every == 0:
-                model.eval()
-                with torch.no_grad():
-                    sampled = tokenizer.detokenize(
-                        model.sample_continuation(tokenizer.tokenize("שלום"), 500)
+                #evaluation
+                if num_batches % validate_every == 0:
+                    model.eval()
+
+                    with torch.no_grad():
+                        val_loss_sum = 0.0
+
+                        for _ in range(val_steps):
+                            val_batch = next(val_batch_iter)
+                            val_x, val_y = lm.batch_to_labeled_samples(val_batch)
+                            val_x = val_x.to(device)
+                            val_y = val_y.to(device)
+
+                            val_logits = model(val_x)
+                            val_loss_sum += lm.compute_loss(val_logits, val_y).item()
+
+                        curr_val_loss = val_loss_sum / val_steps
+
+                    val_losses.append(curr_val_loss)
+                    scheduler.step(curr_val_loss)
+
+                    if curr_val_loss < best_val_loss:
+                        best_val_loss = curr_val_loss
+                        save_best_model(
+                            model,
+                            params,
+                            best_val_loss,
+                            epoch=num_batches,
+                            out_dir="../models/",
+                        )
+
+                    current_lr = optimizer.param_groups[0]["lr"]
+                    print(
+                        f"Val loss: {curr_val_loss:.6f} | "
+                        f"best val loss: {best_val_loss:.6f} | "
+                        f"lr: {current_lr:.8g}"
                     )
-                print(f"Model sample: '''{sampled}'''")
-                print("")
-                model.train()
 
-            if num_batches % validate_every == 0:
-                model.eval()
+                    model.train()
 
-                with torch.no_grad():
-                    val_loss_sum = 0.0
-
-                    for _ in range(val_steps):
-                        val_batch = next(val_batch_iter)
-                        val_x, val_y = lm.batch_to_labeled_samples(val_batch)
-                        val_x = val_x.to(device)
-                        val_y = val_y.to(device)
-
-                        val_logits = model(val_x)
-                        val_loss_sum += lm.compute_loss(val_logits, val_y).item()
-
-                    curr_val_loss = val_loss_sum / val_steps
-
-                val_losses.append(curr_val_loss)
-                scheduler.step(curr_val_loss)
-
-                if curr_val_loss < best_val_loss:
-                    best_val_loss = curr_val_loss
-                    save_best_model(
-                        model,
-                        params,
-                        best_val_loss,
-                        epoch=num_batches,
-                        out_dir="../models/",
-                    )
-
-                current_lr = optimizer.param_groups[0]["lr"]
-                print(
-                    f"Val loss: {curr_val_loss:.6f} | "
-                    f"best val loss: {best_val_loss:.6f} | "
-                    f"lr: {current_lr:.8g}"
-                )
-
-                model.train()
-
-        loss_plotter(train_losses, val_losses, params, "../figs/")
+            loss_plotter(train_losses, val_losses, params, "../figs/")

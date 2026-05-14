@@ -5,7 +5,9 @@ __pycache__/
 
 # Data
 data/
-
+figs/
+logs/
+attn_maps/
 # Virtual Environments
 .venv/
 env/
@@ -15,3 +17,5 @@ ENV/
 # uv
 .uv/
 .python-version
+
+
