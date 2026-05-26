@@ -23,7 +23,6 @@ missing =['meta-llama/Llama-3.1-8B-Instruct',
 
           ]
 
-found = []
 def get_model_cfg(model_id):
     # try:
         path = hf_hub_download(
