@@ -54,25 +54,25 @@ def get_model(model_id):
 
 from contextlib import redirect_stdout, redirect_stderr
 
-# with open("output2.txt", "w", encoding="utf-8") as f:
-#     # with redirect_stdout(f), redirect_stderr(f):
-#
-#         for model_id in missing: #models:
-#             print(f'model ID: {model_id}')
-#             cfg = get_model_cfg(model_id)
-#             arch = 'architectures'
-#
-#             if arch in cfg:
-#                 print(arch)
-#                 for arc in cfg[arch]:
-#                     model = get_model(model_id)
-#                     for name, module in model.named_modules():
-#                         if hasattr(module, "weight"):
-#                             print(name, tuple(module.weight.shape))
-#
-#                     print('----')
-#             print(json.dumps(cfg, indent=2, ensure_ascii=False))
-#             print('*'*10)
+with open("output2.txt", "w", encoding="utf-8") as f:
+    # with redirect_stdout(f), redirect_stderr(f):
+
+        for model_id in missing: #models:
+            print(f'model ID: {model_id}')
+            cfg = get_model_cfg(model_id)
+            arch = 'architectures'
+
+            if arch in cfg:
+                print(arch)
+                for arc in cfg[arch]:
+                    model = get_model(model_id)
+                    for name, module in model.named_modules():
+                        if hasattr(module, "weight"):
+                            print(name, tuple(module.weight.shape))
+
+                    print('----')
+            print(json.dumps(cfg, indent=2, ensure_ascii=False))
+            print('*'*10)
 
 heb_set = set("אבגדהוזחטיכלמנסעפצקרשת".split())
 for model_id in models:
