@@ -13,7 +13,7 @@
 # api_base = http://localhost:11434
 
 provider = ollama
-model = ollama/gemma3:4b
+model = ollama/gemma4:e4b #ollama/gemma3:4b
 api_base = http://localhost:11434
 
 [agent]

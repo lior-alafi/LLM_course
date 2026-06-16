@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 Intent = Literal[
@@ -24,6 +24,13 @@ class AgentDecision(BaseModel):
     clarification_options: list[str] = Field(default_factory=list)
 
     explanation: str | None = None
+
+    @field_validator("clarification_options", mode="before")
+    @classmethod
+    def none_to_empty_list(cls, value):
+        if value is None:
+            return []
+        return value
 
 
 SafetyLevel = Literal[
@@ -51,3 +58,10 @@ class MemoryCandidate(BaseModel):
 
 class MemoryExtractionResult(BaseModel):
     memories: list[MemoryCandidate] = Field(default_factory=list)
+
+    @field_validator("memories", mode="before")
+    @classmethod
+    def none_to_empty_memories(cls, value):
+        if value is None:
+            return []
+        return value
