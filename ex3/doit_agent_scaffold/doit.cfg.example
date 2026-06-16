@@ -1,0 +1,27 @@
+[model]
+# Examples:
+# provider = gemini
+# model = gemini/gemini-2.5-flash
+# api_key_env = GOOGLE_API_KEY
+#
+# provider = ollama
+# model = ollama/gemma3:4b
+# api_base = http://localhost:11434
+#
+# provider = ollama
+# model = ollama/qwen3:4b-instruct
+# api_base = http://localhost:11434
+
+provider = ollama
+model = ollama/gemma3:4b
+api_base = http://localhost:11434
+
+[agent]
+shell = /bin/bash
+secure = true
+
+[state]
+backend = file
+
+[memory]
+backend = file

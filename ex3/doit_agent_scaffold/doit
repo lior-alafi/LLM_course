@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import sys
+
+from doit_agent.config import ConfigLoader
+from doit_agent.llm_factory import LLMFactory
+from doit_agent.agent import DoitAgent
+from doit_agent.state.factory import StateStoreFactory
+from doit_agent.memory.factory import MemoryStoreFactory
+from doit_agent.prompt_log import PromptLogger
+
+
+def main() -> int:
+    if len(sys.argv) < 2:
+        print('Usage: doit "<your query>"')
+        return 1
+
+    query = " ".join(sys.argv[1:])
+
+    config = ConfigLoader().load()
+    llm = LLMFactory.create(config.model)
+    state_store = StateStoreFactory.create(config)
+    memory_store = MemoryStoreFactory.create(config)
+    prompt_logger = PromptLogger()
+
+    agent = DoitAgent(
+        config=config,
+        llm=llm,
+        state_store=state_store,
+        memory_store=memory_store,
+        prompt_logger=prompt_logger,
+    )
+
+    return agent.run(query)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
