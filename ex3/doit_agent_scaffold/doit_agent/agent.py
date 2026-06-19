@@ -26,13 +26,14 @@ class DoitAgent:
         state_store: StateStore,
         memory_store: MemoryStore,
         prompt_logger: PromptLogger | None = None,
+        verbose_level: int = 0,
     ):
         self.config = config
         self.llm = llm
         self.state_store = state_store
         self.memory_store = memory_store
         self.prompt_logger = prompt_logger
-
+        self.verbose_level = verbose_level
         self.safety = SafetyService(
             llm,
             model_name=config.model.model,
