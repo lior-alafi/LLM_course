@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pydantic import ValidationError
-
 from doit_agent.json_utils import extract_json_object
 from doit_agent.llm_client import LLMClient
 from doit_agent.memory.store import MemoryStore
@@ -24,12 +22,19 @@ class MemoryService:
         self.model_name = model_name
         self.prompt_logger = prompt_logger
 
-    def extract_and_store(self, user_query: str) -> list[str]:
+    def extract_and_apply(
+        self,
+        user_query: str,
+        cwd: str | None = None,
+        command: str | None = None,
+    ) -> list[str]:
         existing = self.memory_store.list_memories()
-        messages = build_memory_extraction_messages(user_query, existing)
-        raw = self.llm.complete_text(messages)
+        messages = build_memory_extraction_messages(
+            user_query, existing, cwd=cwd, command=command
+        )
 
         try:
+            raw = self.llm.complete_text(messages)
             data = extract_json_object(raw)
             result = MemoryExtractionResult.model_validate(data)
 
@@ -41,23 +46,27 @@ class MemoryService:
                     raw_response=raw,
                     parsed_response=result.model_dump(),
                 )
-
         except Exception:
             return []
 
-        stored_keys: list[str] = []
+        actions: list[str] = []
 
         for candidate in result.memories:
-            if (
-                candidate.should_store
-                and candidate.key
-                and candidate.value
-            ):
+            action = candidate.normalized_action()
+
+            if action == "store" and candidate.key and candidate.value:
                 record = self.memory_store.upsert_memory(
                     key=candidate.key,
                     value=candidate.value,
                     source_query=user_query,
                 )
-                stored_keys.append(record.key)
+                actions.append(f"stored:{record.key}")
 
-        return stored_keys
+            elif action == "delete" and candidate.key:
+                deleted = self.memory_store.delete_memory(candidate.key)
+                if deleted:
+                    actions.append(f"deleted:{candidate.key}")
+                else:
+                    actions.append(f"delete_missed:{candidate.key}")
+
+        return actions

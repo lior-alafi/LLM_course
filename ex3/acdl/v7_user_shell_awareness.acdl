@@ -1,0 +1,5 @@
+DoitUserShellAwareness[@T]: {
+    UserShellHistory { T: { sys.shell_history_provider.read_recent_commands } U: { sys.recent_external_shell_commands } }
+    CurrentTurn { U: env.user_query[@T] }
+    If env.user_query[@T] refers_to "what I just did" { A: { resp.answer_based_on_external_shell_history } }
+}

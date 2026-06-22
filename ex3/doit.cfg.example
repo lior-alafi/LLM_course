@@ -1,0 +1,37 @@
+[model]
+# Examples:
+# provider = gemini
+# model = gemini/gemini-2.5-flash
+# api_key_env = GOOGLE_API_KEY
+#
+# provider = ollama
+# model = ollama/gemma4:e4b
+# api_base = http://172.26.160.1:11434
+#
+# provider = ollama
+# model = ollama/qwen3.5:9b
+# api_base = http://172.26.160.1:11434
+
+provider = ollama
+model = ollama/gemma4:e4b
+api_base = http://172.26.160.1:11434
+
+[agent]
+shell = /bin/bash
+secure = true
+max_clarification_rounds = 2
+
+[state]
+backend = file
+
+[memory]
+backend = file
+
+[user_awareness]
+enabled = true
+shell_history_limit = 20
+
+[context]
+summaries_enabled = true
+summary_threshold = 20
+summary_recent_keep = 8

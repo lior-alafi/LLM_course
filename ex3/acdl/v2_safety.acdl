@@ -1,0 +1,10 @@
+DoitSafety[@T]: {
+    Setup { S: { DOIT_AGENT_ROLE COMMAND_TRANSLATION_POLICY env.secure[@T] } }
+    CurrentTurn { U: env.user_query[@T] }
+    If env.secure[@T] == true {
+        SecurityCheck { S: { SAFETY_CLASSIFIER_ROLE SAFETY_CLASSIFICATION_POLICY } U: { env.user_query[@T] sys.proposed_command[@T] } }
+        If sys.safety.requires_confirmation[@T] == true {
+            Confirmation { A: { sys.proposed_command[@T] sys.safety.explanation[@T] "Proceed? [y/N]" } U: env.user_confirmation[@T] }
+        }
+    }
+}

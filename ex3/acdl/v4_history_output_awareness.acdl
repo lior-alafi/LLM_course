@@ -1,0 +1,8 @@
+DoitHistoryOutputAwareness[@T]: {
+    StateLoad { T: { sys.state_store.get_recent_interactions } }
+    SameSessionHistory {
+        ForEach(t: sys.same_session_recent_turns) { U: env.user_query[@t] A: { resp.command[@t] resp.stdout[@t] resp.stderr[@t] resp.returncode[@t] } }
+    }
+    CurrentTurn { U: env.user_query[@T] }
+    StateUpdate { T: { sys.state_store.append_interaction[@T] } }
+}

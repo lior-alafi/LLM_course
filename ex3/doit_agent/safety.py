@@ -68,6 +68,14 @@ class RuleBasedSafetyClassifier:
         "git diff",
         "ps",
         "echo",
+        "cd",       # navigation — read-only in terms of filesystem
+        "pushd",
+        "popd",
+        "which",
+        "type",
+        "env",
+        "printenv",
+        "history",
     )
 
     def classify(self, command: str) -> SafetyDecision | None:

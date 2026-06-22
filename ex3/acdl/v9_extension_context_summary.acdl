@@ -1,0 +1,6 @@
+DoitContextSummary[@T]: {
+    If sys.same_session_history_length > sys.summary_threshold {
+        ContextCompaction { S: { SUMMARIZE_LONG_HISTORY_FOR_FUTURE_AGENT_CONTEXT } U: { sys.previous_session_summary sys.older_session_interactions } A: { resp.compacted_summary } T: { sys.context_summary_store.set_summary } }
+    }
+    FuturePrompt { U: { sys.compacted_session_summary sys.recent_interactions env.user_query[@T] } }
+}

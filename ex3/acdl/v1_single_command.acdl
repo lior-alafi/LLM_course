@@ -1,0 +1,5 @@
+DoitSingleCommand[@T]: {
+    Setup { S: { DOIT_AGENT_ROLE COMMAND_TRANSLATION_POLICY JSON_OUTPUT_SCHEMA } }
+    CurrentTurn { U: { env.user_query[@T] } }
+    Execution { T: { sys.executed_command[@T] sys.stdout[@T] sys.stderr[@T] sys.returncode[@T] } }
+}

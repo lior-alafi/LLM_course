@@ -16,12 +16,20 @@ class LiteLLMClient(LLMClient):
             "messages": messages,
             "temperature": 0,
         }
-
+        if self.config.api_key:
+            kwargs['api_key'] = self.config.api_key
         if self.config.api_base:
             kwargs["api_base"] = self.config.api_base
 
-        response = completion(**kwargs)
-        return response.choices[0].message.content
+        try:
+            response = completion(**kwargs)
+            return response.choices[0].message.content
+        except Exception as exc:
+            raise RuntimeError(
+                f"Could not call LLM model={self.config.model}. "
+                f"If you are using Ollama, make sure Ollama is running and api_base is reachable. "
+                f"Original error: {exc}"
+            ) from exc
 
 
 class LLMFactory:

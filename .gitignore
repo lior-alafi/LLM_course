@@ -110,3 +110,6 @@ ENV/
 /ex1/code-and-data/final/eng/eng_model/attention_map_batch_6300.png
 /ex1/code-and-data/final/eng/eng_model/best_model_seq128_bs32_L8_H4_E256_M1024_lr0p0004650772489.pth
 /ex1/code-and-data/final/heb/heb_model/best_model_seq128_bs32_L8_H4_E256_M1024_lr0p0004650772489.pth
+
+# doit
+.doit/

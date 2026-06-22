@@ -10,7 +10,7 @@ from doit_agent.state.store import StateStore
 
 class FileStateStore(StateStore):
     def __init__(self, base_dir: Path | None = None):
-        self.base_dir = base_dir or (Path.home() / ".doit")
+        self.base_dir = base_dir or (Path(__file__).resolve().parent.parent.parent / ".doit")
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
         self.history_path = self.base_dir / "history.jsonl"

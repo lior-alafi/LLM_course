@@ -1,20 +1,22 @@
 from __future__ import annotations
 
 import os
-from pydantic import ValidationError
 
+from doit_agent.command_policy import SingleCommandPolicy
 from doit_agent.config import DoitConfig
+from doit_agent.context_summary import ContextSummaryService
 from doit_agent.json_utils import extract_json_object
 from doit_agent.llm_client import LLMClient
 from doit_agent.memory.store import MemoryStore
 from doit_agent.memory_service import MemoryService
 from doit_agent.prompt_log import PromptLogger
-from doit_agent.prompts import build_agent_messages
+from doit_agent.prompts import build_agent_messages, build_clarification_messages
 from doit_agent.safety import SafetyService
 from doit_agent.schemas import AgentDecision, SafetyDecision
 from doit_agent.shell_exec import run_shell
 from doit_agent.state.models import InteractionRecord, get_session_id
 from doit_agent.state.store import StateStore
+from doit_agent.user_awareness.shell_history import ShellHistoryProvider
 
 
 class DoitAgent:
@@ -34,6 +36,7 @@ class DoitAgent:
         self.memory_store = memory_store
         self.prompt_logger = prompt_logger
         self.verbose_level = verbose_level
+
         self.safety = SafetyService(
             llm,
             model_name=config.model.model,
@@ -47,21 +50,38 @@ class DoitAgent:
             prompt_logger=prompt_logger,
         )
 
+        self.context_summary_service = ContextSummaryService(
+            llm=llm,
+            model_name=config.model.model,
+            prompt_logger=prompt_logger,
+        )
+
+        self.shell_history_provider = ShellHistoryProvider()
+        self.command_policy = SingleCommandPolicy()
         self.session_id = get_session_id()
 
     def decide(self, query: str) -> AgentDecision:
         same_session_history = self.state_store.get_recent_interactions(
-            limit=8,
+            limit=self.config.context.summary_recent_keep,
             session_id=self.session_id,
         )
 
-        # Keep global history small to avoid confusing the model.
         global_history = self.state_store.get_recent_interactions(
             limit=3,
             session_id=None,
         )
 
         memories = self.memory_store.list_memories()
+
+        recent_shell_commands = []
+        if self.config.user_awareness.enabled:
+            recent_shell_commands = self.shell_history_provider.get_recent_commands(
+                limit=self.config.user_awareness.shell_history_limit,
+            )
+
+        session_summary = None
+        if self.config.context.summaries_enabled:
+            session_summary = self.context_summary_service.get_summary(self.session_id)
 
         messages = build_agent_messages(
             user_query=query,
@@ -71,12 +91,15 @@ class DoitAgent:
             same_session_history=same_session_history,
             global_history=global_history,
             memories=memories,
+            recent_shell_commands=recent_shell_commands,
+            session_summary=session_summary,
         )
 
         raw = self.llm.complete_text(messages)
 
         try:
             data = extract_json_object(raw)
+            # print(data)
             decision = AgentDecision.model_validate(data)
 
             if self.prompt_logger:
@@ -96,54 +119,89 @@ class DoitAgent:
                 error=f"Could not parse model response as AgentDecision. Raw response: {raw}. Error: {exc}",
             )
 
-    def run(self, query: str) -> int:
-        # Memory extraction is separate from command planning.
-        # This allows commands such as:
-        # "move to ~/school/llms/ass3. this is my LLM class project folder"
-        # to both execute and store a memory.
-        stored_memory_keys = self.memory_service.extract_and_store(query)
+    def clarify(self, original_query: str, decision: AgentDecision) -> AgentDecision:
+        print(decision.clarification_question or "I need clarification.")
 
+        for i, option in enumerate(decision.clarification_options, start=1):
+            print(f"{i}. {option}")
+
+        answer = input("Your answer: ").strip()
+
+        messages = build_clarification_messages(
+            original_query=original_query,
+            clarification_question=decision.clarification_question or "",
+            options=decision.clarification_options,
+            user_answer=answer,
+        )
+
+        raw = self.llm.complete_text(messages)
+
+        try:
+            data = extract_json_object(raw)
+            final_decision = AgentDecision.model_validate(data)
+
+            if self.prompt_logger:
+                self.prompt_logger.log(
+                    acdl_spec="DoitClarification",
+                    model=self.config.model.model,
+                    messages=messages,
+                    raw_response=raw,
+                    parsed_response=final_decision.model_dump(),
+                )
+
+            return final_decision
+
+        except Exception as exc:
+            return AgentDecision(
+                intent="error",
+                error=f"Could not parse clarification response. Raw response: {raw}. Error: {exc}",
+            )
+
+    def run(self, query: str) -> int:
         decision = self.decide(query)
+
+        clarification_rounds = 0
+        while (
+            decision.intent == "clarification"
+            and clarification_rounds < self.config.agent.max_clarification_rounds
+        ):
+            clarification_rounds += 1
+            decision = self.clarify(query, decision)
+
+        # Memory extraction runs AFTER decide() so the LLM has full context:
+        # what the user asked, what command was chosen, and what cwd is.
+        # The memory prompt instructs it to store absolute paths from that context.
+        memory_actions = self.memory_service.extract_and_apply(
+            query,
+            cwd=os.getcwd(),
+            command=decision.command,
+        )
+
+        if decision.intent == "clarification":
+            msg = "Could not resolve clarification after the allowed number of rounds."
+            print(msg)
+            self._save_interaction(query=query, decision=decision, answer=msg)
+            return 1
 
         if decision.intent == "error":
             msg = decision.error or "Unknown error."
             print(msg)
-
-            self._save_interaction(
-                query=query,
-                decision=decision,
-                answer=msg,
-            )
-
+            self._save_interaction(query=query, decision=decision, answer=msg)
             return 1
 
         if decision.intent in {"conversation", "answer"}:
             answer = decision.answer or decision.explanation or ""
             print(answer)
 
-            if stored_memory_keys:
-                print(f"\nStored memory: {', '.join(stored_memory_keys)}")
+            if memory_actions:
+                print(f"\nMemory actions: {', '.join(memory_actions)}")
 
             self._save_interaction(
                 query=query,
                 decision=decision,
                 answer=answer,
             )
-
-            return 0
-
-        if decision.intent == "clarification":
-            print(decision.clarification_question or "I need clarification.")
-
-            for i, option in enumerate(decision.clarification_options, start=1):
-                print(f"{i}. {option}")
-
-            self._save_interaction(
-                query=query,
-                decision=decision,
-                answer=decision.clarification_question,
-            )
-
+            self._maybe_update_context_summary()
             return 0
 
         if decision.intent != "execute_command":
@@ -154,8 +212,25 @@ class DoitAgent:
             print("Model selected execute_command but did not provide a command.")
             return 1
 
-        command = decision.command
-        print(command)
+        command = decision.command.strip()
+
+        policy_result = self.command_policy.validate(command)
+        if not policy_result.allowed:
+            print("Command was not executed.")
+            print(policy_result.reason)
+            print(f"Proposed command: {command}")
+
+            self._save_interaction(
+                query=query,
+                decision=decision,
+                command=command,
+                stdout="",
+                stderr=policy_result.reason,
+                returncode=1,
+            )
+            return 1
+
+        # print(command)
         print()
 
         safety: SafetyDecision | None = None
@@ -178,7 +253,6 @@ class DoitAgent:
                     stderr=safety.explanation,
                     returncode=1,
                 )
-
                 return 1
 
             if safety.requires_confirmation:
@@ -189,7 +263,6 @@ class DoitAgent:
 
                 if not user_confirmed:
                     print("Cancelled.")
-
                     self._save_interaction(
                         query=query,
                         decision=decision,
@@ -200,19 +273,16 @@ class DoitAgent:
                         stderr="User cancelled command.",
                         returncode=1,
                     )
-
                     return 1
 
-        result = run_shell(command, shell=self.config.agent.shell)
+        if memory_actions:
+            print(f"\nMemory actions: {', '.join(memory_actions)}")
 
-        if result["stdout"]:
-            print(result["stdout"], end="")
-
-        if result["stderr"]:
-            print("Error Output:", result["stderr"], end="")
-
-        if stored_memory_keys:
-            print(f"\nStored memory: {', '.join(stored_memory_keys)}")
+        # Emit a marker that the shell wrapper will eval in the real shell.
+        # This is the only way to make cd, export, source, alias, and all
+        # other shell built-ins actually take effect in the user's terminal.
+        # The Python process never runs the command itself.
+        print(f"DOIT_EXEC:{command}")
 
         self._save_interaction(
             query=query,
@@ -220,12 +290,29 @@ class DoitAgent:
             command=command,
             safety=safety,
             user_confirmed=user_confirmed,
-            stdout=str(result["stdout"]),
-            stderr=str(result["stderr"]),
-            returncode=int(result["returncode"]),
+            stdout="",   # output will appear in the real shell, not captured here
+            stderr="",
+            returncode=0,
         )
 
-        return int(result["returncode"])
+        self._maybe_update_context_summary()
+        return 0
+
+    def _maybe_update_context_summary(self) -> None:
+        if not self.config.context.summaries_enabled:
+            return
+
+        records = self.state_store.get_recent_interactions(
+            limit=1000,
+            session_id=self.session_id,
+        )
+
+        self.context_summary_service.maybe_update_summary(
+            session_id=self.session_id,
+            records=records,
+            threshold=self.config.context.summary_threshold,
+            recent_keep=self.config.context.summary_recent_keep,
+        )
 
     def _save_interaction(
         self,
