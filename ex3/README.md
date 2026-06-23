@@ -14,49 +14,54 @@ This is a modular scaffold for Assignment 3: Agents.
 
 ## Install
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-chmod +x doit
-cp doit.cfg.example ~/doit.cfg
-```
-
-## Run
+Run the one-shot installer — it handles everything: venv, dependencies, config, and shell setup.
 
 ```bash
-./doit "list files"
-./doit -vv "list files"
+bash install.bash
 ```
 
-## WSL + Windows Ollama
+What it does:
+1. Creates a `.venv` Python virtual environment
+2. Installs dependencies (`litellm`, `pydantic`)
+3. Makes the `doit` script executable
+4. Copies `doit.cfg.example` → `~/doit.cfg` (skips if already exists)
+5. Adds `shell_setup.bash` to `~/.bashrc` (removes any stale entries first)
+6. Sources the shell function immediately so `doit` works in the current session
+
+> **After install:** edit `~/doit.cfg` to set your model provider before using `doit`.
+
+## Configure
+
+Open `~/doit.cfg` and set at minimum:
+
+```ini
+[model]
+provider = ollama          # or: gemini, openai, etc.
+model = ollama/gemma4:e4b
+api_base = http://<host>:11434   # Ollama only
+# api_key_env = GOOGLE_API_KEY   # cloud providers
+```
+
+### WSL + Windows Ollama
+
+Find your Windows host IP and point the config at it:
 
 ```bash
 WIN_HOST=$(ip route | awk '/default/ {print $3}')
-curl "http://$WIN_HOST:11434/api/tags"
+curl "http://$WIN_HOST:11434/api/tags"   # verify Ollama is reachable
 ```
 
-Then set in `~/doit.cfg`:
+Then in `~/doit.cfg`:
 
 ```ini
 api_base = http://<WIN_HOST>:11434
 ```
 
-## Shell setup
-
-This enables the `doit` shell function, which runs commands in your **real shell**
-so that `cd`, `export`, `source`, `alias`, etc. actually take effect in your terminal.
+## Run
 
 ```bash
-# Replace with the actual path to the scaffold folder
-echo "source ~/path/to/doit_agent_scaffold_v2/shell_setup.bash" >> ~/.bashrc
-source ~/.bashrc
-```
-
-Then use `doit` directly (without `./`):
-
-```bash
-doit list files
+doit "list files"
+doit -vv "list files"
 doit move back a folder
 doit set FOO to hello
 ```

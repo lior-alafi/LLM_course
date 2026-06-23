@@ -97,6 +97,10 @@ Your job:
 7. Use stored memories when the user refers to remembered folders, preferences, or facts.
 8. If the user request is ambiguous, ask a clarification question.
 9. Return only valid JSON.
+10. If the user refers to a named location, folder, preference, or fact (e.g. "my advanced AI course folder") that does NOT appear in stored memories and cannot be inferred from history or context:
+   - If there is NO matching entry at all → use intent "answer" and tell the user you don't know which one they mean (e.g. "I couldn't find a stored folder called 'advanced AI course'. Try telling me its path or saving it with 'remember that my X folder is /path'.").
+   - If there are 2 or more possible matches → use intent "clarification" and list the options so the user can pick one.
+   - Never guess or fabricate a path.
 
 Important command rules:
 - Produce only one command when intent is execute_command.
@@ -216,7 +220,25 @@ def build_memory_extraction_messages(
 ) -> list[dict[str, str]]:
     system = f"""
 You extract explicit long-term memory requests from user commands.
-Store a memory only when the user clearly asks to remember something, or states a stable preference/folder mapping that should be useful later.
+
+Store a memory ONLY when the user explicitly says to remember something (e.g. "remember that...", "always use...", "my X is Y").
+Store a memory for stable, named preferences that should apply across future sessions (e.g. a preferred editor, a project root path the user named).
+
+DO NOT store:
+- The current working directory unless the user explicitly says "remember this as my project root" or similar.
+- Flags or modifiers from a single command (e.g. "not recursively", "sort by size") unless the user says they want this to always apply.
+- Observations about what just happened or what files exist.
+- Anything that is only relevant to this specific command or this session.
+- Named things (folders, paths, preferences) that the user references but that do NOT appear in the existing memories and cannot be resolved from the provided cwd/command. If the reference is unresolvable, use action: none — the main agent will ask for clarification.
+
+Examples:
+- User says "list files sorted by size" → action: none (this is just a command, not a preference to remember)
+- User says "list files, not recursively" → action: none (single-command modifier, not a lasting preference)
+- User says "remember that my project root is ~/work/myapp" → action: store, key: project_root, value: /home/user/work/myapp
+- User says "always sort by size" → action: store, key: sort_preference, value: always sort by size
+- User says "cd 2 folders back , this is my LLM Folder" -> key: LLM_folder , value: absolute path of the LLM folder
+- User says "move to my advanced AI course folder" but no such folder is in memories → action: none (unresolvable reference; agent will ask for clarification)
+
 Delete a memory only when the user clearly asks to forget/remove/delete a remembered fact.
 When storing any value that represents a location or path, always compute and store the final ABSOLUTE path.
 Use the provided cwd and command to work out the concrete result — do not store relative paths or natural-language instructions.

@@ -16,6 +16,7 @@ def parse_args():
     return parser.parse_args()
 
 def main() -> int:
+    # print("parsing args")
     args = parse_args()
     if not args.query:
         print('Usage: doit [-v|-vv] "<your query>"')
@@ -25,13 +26,15 @@ def main() -> int:
     from pathlib import Path
     config_path= Path(Path(__file__).resolve().parent)/"doit.cfg"
     config=ConfigLoader(config_path).load()
+    # print("Loaded config")
     llm=LLMFactory.create(config.model)
+    # print("Created LLM")
     agent=DoitAgent(config=config, llm=llm,
                     state_store=StateStoreFactory.create(config),
                     memory_store=MemoryStoreFactory.create(config),
                     prompt_logger=PromptLogger(verbose_level=args.verbose),
                     verbose_level=args.verbose)
-    
+    # print("Created agent")
     return agent.run(query)
 if __name__=='__main__':
     raise SystemExit(main())

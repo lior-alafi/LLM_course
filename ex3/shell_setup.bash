@@ -48,8 +48,6 @@ _DOIT_SCAFFOLD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
 # ---------------------------------------------------------------------------
 doit() {
   # ── Find the real Python doit script ──────────────────────────────────────
-  # _DOIT_SCAFFOLD_DIR was resolved at source time (see above), so this works
-  # regardless of which directory the user is in when they call doit.
   local _DOIT_BIN="$_DOIT_SCAFFOLD_DIR/doit"
 
   if [ ! -f "$_DOIT_BIN" ]; then
@@ -59,31 +57,34 @@ doit() {
     return 1
   fi
 
-  # ── Run the agent and capture ALL output ──────────────────────────────────
-  # stderr is merged into stdout so safety prompts / clarifications are visible.
-  local _output
-  _output="$(python3 "$_DOIT_BIN" "$@" 2>&1)"
-  local _agent_exit=$?
+  # ── Stream output line-by-line ─────────────────────────────────────────────
+  # We used to capture everything with $(...) so we could scan for DOIT_EXEC:.
+  # The problem: $(...) buffers ALL output until Python exits, so nothing is
+  # visible while the agent runs — clarification questions, debug logs, errors
+  # all hang silently.
+  #
+  # Fix: pipe Python's output through a while-read loop.  Each line is printed
+  # immediately as it arrives.  We intercept only the DOIT_EXEC: marker line.
+  # stderr is sent directly to the terminal (not piped) so errors always show.
+  #
+  # stdbuf -oL forces Python's stdout to line-buffer mode so lines arrive
+  # promptly even when the output is a pipe and not a TTY.
 
-  # ── Scan output for DOIT_EXEC: markers ────────────────────────────────────
   local _exec_cmd=""
-  local _line
+  local _agent_exit
+
   while IFS= read -r _line; do
     if [[ "$_line" == DOIT_EXEC:* ]]; then
-      # Capture the command (everything after the colon).
       _exec_cmd="${_line#DOIT_EXEC:}"
     else
-      # Print everything else normally (agent explanation, safety info, etc.).
       printf '%s\n' "$_line"
     fi
-  done <<< "$_output"
+  done < <(stdbuf -oL python3 "$_DOIT_BIN" "$@" 2>&1)
+  _agent_exit=$?
 
-  # ── Execute the command in THIS shell ─────────────────────────────────────
+  # ── Execute the intercepted command in THIS shell ──────────────────────────
   if [ -n "$_exec_cmd" ]; then
-    # Show the user exactly what is being run.
     printf '\033[0;36m▶ %s\033[0m\n' "$_exec_cmd"
-    # eval runs the command inside the current shell process — the only way to
-    # make cd, export, source, alias, etc. actually take effect.
     eval "$_exec_cmd"
     return $?
   fi

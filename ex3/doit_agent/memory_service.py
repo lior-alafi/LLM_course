@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from doit_agent.debug import trace
 from doit_agent.json_utils import extract_json_object
 from doit_agent.llm_client import LLMClient
 from doit_agent.memory.store import MemoryStore
@@ -22,6 +23,7 @@ class MemoryService:
         self.model_name = model_name
         self.prompt_logger = prompt_logger
 
+    @trace
     def extract_and_apply(
         self,
         user_query: str,
@@ -46,7 +48,8 @@ class MemoryService:
                     raw_response=raw,
                     parsed_response=result.model_dump(),
                 )
-        except Exception:
+        except Exception as e:
+            print(f"[memory_service] Failed to extract memories: {e}")
             return []
 
         actions: list[str] = []

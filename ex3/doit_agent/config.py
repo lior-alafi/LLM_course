@@ -20,7 +20,7 @@ class UserAwarenessConfig:
     enabled: bool=True; shell_history_limit:int=20
 @dataclass(frozen=True)
 class ContextConfig:
-    summaries_enabled: bool=True; summary_threshold:int=20; summary_recent_keep:int=8
+    summaries_enabled: bool=True; summary_threshold:int=5; summary_recent_keep:int=8
 @dataclass(frozen=True)
 class DoitConfig:
     model: ModelConfig; agent: AgentConfig; state: StateConfig; memory: MemoryConfig; user_awareness: UserAwarenessConfig; context: ContextConfig
@@ -49,5 +49,5 @@ class ConfigLoader:
         state_backend=p.get('state','backend',fallback='file'); state_redis=p.get('state','redis_url',fallback=None)
         mem_backend=p.get('memory','backend',fallback='file'); mem_redis=p.get('memory','redis_url',fallback=None)
         ua_enabled=p.getboolean('user_awareness','enabled',fallback=True); shell_hist_limit=p.getint('user_awareness','shell_history_limit',fallback=20)
-        summ_enabled=p.getboolean('context','summaries_enabled',fallback=True); summ_threshold=p.getint('context','summary_threshold',fallback=20); summ_keep=p.getint('context','summary_recent_keep',fallback=8)
+        summ_enabled=p.getboolean('context','summaries_enabled',fallback=True); summ_threshold=p.getint('context','summary_threshold',fallback=5); summ_keep=p.getint('context','summary_recent_keep',fallback=8)
         return DoitConfig(ModelConfig(provider,model,api_key,api_base,api_key_env), AgentConfig(shell,secure,max_clar), StateConfig(state_backend,state_redis), MemoryConfig(mem_backend,mem_redis), UserAwarenessConfig(ua_enabled,shell_hist_limit), ContextConfig(summ_enabled,summ_threshold,summ_keep))

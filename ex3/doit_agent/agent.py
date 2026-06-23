@@ -5,6 +5,7 @@ import os
 from doit_agent.command_policy import SingleCommandPolicy
 from doit_agent.config import DoitConfig
 from doit_agent.context_summary import ContextSummaryService
+from doit_agent.debug import trace
 from doit_agent.json_utils import extract_json_object
 from doit_agent.llm_client import LLMClient
 from doit_agent.memory.store import MemoryStore
@@ -60,6 +61,7 @@ class DoitAgent:
         self.command_policy = SingleCommandPolicy()
         self.session_id = get_session_id()
 
+    @trace
     def decide(self, query: str) -> AgentDecision:
         same_session_history = self.state_store.get_recent_interactions(
             limit=self.config.context.summary_recent_keep,
@@ -119,13 +121,43 @@ class DoitAgent:
                 error=f"Could not parse model response as AgentDecision. Raw response: {raw}. Error: {exc}",
             )
 
+    @trace
     def clarify(self, original_query: str, decision: AgentDecision) -> AgentDecision:
-        print(decision.clarification_question or "I need clarification.")
+        # Write directly to /dev/tty so the question is visible even when the
+        # shell wrapper captures stdout with $(...).  /dev/tty is always the
+        # real terminal regardless of stdout/stderr redirection.
+        # Always specify encoding explicitly — WSL terminals often send UTF-8
+        # but Python may default to ASCII or latin-1 on the stdin stream.
+        try:
+            tty = open("/dev/tty", "r+", encoding="utf-8", errors="replace")
+        except OSError:
+            tty = None  # fallback to sys.stdin.buffer if no tty
 
+        def tty_print(msg: str) -> None:
+            if tty:
+                tty.write(msg + "\n")
+                tty.flush()
+            else:
+                print(msg, flush=True)
+
+        tty_print(decision.clarification_question or "I need clarification.")
         for i, option in enumerate(decision.clarification_options, start=1):
-            print(f"{i}. {option}")
+            tty_print(f"{i}. {option}")
 
-        answer = input("Your answer: ").strip()
+        if tty:
+            tty.write("Your answer: ")
+            tty.flush()
+            answer = tty.readline().strip()
+            tty.close()
+        else:
+            # Read raw bytes and decode manually so non-UTF-8 keystrokes
+            # (e.g. Hebrew keyboard input on a mis-configured locale) don't crash.
+            import sys
+            sys.stdout.write("Your answer: ")
+            sys.stdout.flush()
+            raw_bytes = sys.stdin.buffer.readline()
+            answer = raw_bytes.decode("utf-8", errors="replace").strip()
+
 
         messages = build_clarification_messages(
             original_query=original_query,
@@ -157,6 +189,7 @@ class DoitAgent:
                 error=f"Could not parse clarification response. Raw response: {raw}. Error: {exc}",
             )
 
+    @trace
     def run(self, query: str) -> int:
         decision = self.decide(query)
 
@@ -228,6 +261,7 @@ class DoitAgent:
                 stderr=policy_result.reason,
                 returncode=1,
             )
+            self._maybe_update_context_summary()
             return 1
 
         # print(command)
@@ -253,6 +287,7 @@ class DoitAgent:
                     stderr=safety.explanation,
                     returncode=1,
                 )
+                self._maybe_update_context_summary()
                 return 1
 
             if safety.requires_confirmation:
@@ -273,6 +308,7 @@ class DoitAgent:
                         stderr="User cancelled command.",
                         returncode=1,
                     )
+                    self._maybe_update_context_summary()
                     return 1
 
         if memory_actions:
@@ -298,6 +334,7 @@ class DoitAgent:
         self._maybe_update_context_summary()
         return 0
 
+    @trace
     def _maybe_update_context_summary(self) -> None:
         if not self.config.context.summaries_enabled:
             return
@@ -306,7 +343,6 @@ class DoitAgent:
             limit=1000,
             session_id=self.session_id,
         )
-
         self.context_summary_service.maybe_update_summary(
             session_id=self.session_id,
             records=records,
@@ -314,6 +350,7 @@ class DoitAgent:
             recent_keep=self.config.context.summary_recent_keep,
         )
 
+    @trace
     def _save_interaction(
         self,
         *,

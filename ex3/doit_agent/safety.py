@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from pydantic import ValidationError
 
+from doit_agent.debug import trace
 from doit_agent.json_utils import extract_json_object
 from doit_agent.llm_client import LLMClient
 from doit_agent.prompt_log import PromptLogger
@@ -78,6 +79,7 @@ class RuleBasedSafetyClassifier:
         "history",
     )
 
+    @trace
     def classify(self, command: str) -> SafetyDecision | None:
         normalized = command.strip()
 
@@ -126,6 +128,7 @@ class SafetyService:
         self.prompt_logger = prompt_logger
         self.rule_based = RuleBasedSafetyClassifier()
 
+    @trace
     def classify(self, user_query: str, command: str) -> SafetyDecision:
         rule_result = self.rule_based.classify(command)
 

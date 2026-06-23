@@ -4,6 +4,7 @@ from pathlib import Path
 import json
 import fcntl
 
+from doit_agent.debug import trace
 from doit_agent.memory.models import MemoryRecord
 from doit_agent.memory.store import MemoryStore
 
@@ -21,6 +22,7 @@ class FileMemoryStore(MemoryStore):
 
         self.lock_path.touch(exist_ok=True)
 
+    @trace
     def upsert_memory(
         self,
         key: str,
@@ -52,6 +54,7 @@ class FileMemoryStore(MemoryStore):
             finally:
                 fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
+    @trace
     def get_memory(self, key: str) -> MemoryRecord | None:
         normalized_key = self._normalize_key(key)
 
@@ -68,6 +71,7 @@ class FileMemoryStore(MemoryStore):
 
         return MemoryRecord.from_dict(data[normalized_key])
 
+    @trace
     def list_memories(self) -> list[MemoryRecord]:
         with self.lock_path.open("r+") as lock_file:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_SH)
@@ -79,6 +83,7 @@ class FileMemoryStore(MemoryStore):
 
         return [MemoryRecord.from_dict(item) for item in data.values()]
 
+    @trace
     def delete_memory(self, key: str) -> bool:
         normalized_key = self._normalize_key(key)
 
@@ -103,7 +108,8 @@ class FileMemoryStore(MemoryStore):
             if not text:
                 return {}
             return json.loads(text)
-        except Exception:
+        except Exception as e:
+            print(f"[memory/file_store] Failed to read memories: {e}")
             return {}
 
     def _write_unlocked(self, data: dict) -> None:

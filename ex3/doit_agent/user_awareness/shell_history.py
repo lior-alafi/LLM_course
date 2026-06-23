@@ -13,7 +13,7 @@ class ShellHistoryProvider:
             path=self.home/fn
             if not path.exists(): continue
             try: lines=path.read_text(encoding='utf-8',errors='ignore').splitlines()
-            except Exception: continue
+            except Exception as e: print(f"[shell_history] Failed to read {path}: {e}"); continue
             for line in lines:
                 cmd=self._parse(line)
                 if cmd and not self._is_doit(cmd): entries.append(ShellHistoryEntry(str(path),cmd))

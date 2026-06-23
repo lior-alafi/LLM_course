@@ -4,6 +4,7 @@ from pathlib import Path
 import json
 import fcntl
 
+from doit_agent.debug import trace
 from doit_agent.state.models import InteractionRecord
 from doit_agent.state.store import StateStore
 
@@ -19,6 +20,7 @@ class FileStateStore(StateStore):
         self.history_path.touch(exist_ok=True)
         self.lock_path.touch(exist_ok=True)
 
+    @trace
     def append_interaction(self, record: InteractionRecord) -> None:
         line = json.dumps(record.to_dict(), ensure_ascii=False)
 
@@ -32,6 +34,7 @@ class FileStateStore(StateStore):
             finally:
                 fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
+    @trace
     def get_recent_interactions(
         self,
         *,
@@ -51,6 +54,7 @@ class FileStateStore(StateStore):
 
         return records[-limit:]
 
+    @trace
     def get_recent_sessions(
         self,
         *,
@@ -91,7 +95,8 @@ class FileStateStore(StateStore):
                 try:
                     data = json.loads(line)
                     records.append(InteractionRecord.from_dict(data))
-                except Exception:
+                except Exception as e:
+                    print(f"[state/file_store] Skipping corrupted history line: {e}")
                     continue
 
         return records

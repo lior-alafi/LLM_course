@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import subprocess
 
+from doit_agent.debug import trace
 
+
+@trace
 def run_shell(command: str, shell: str = "/bin/bash") -> dict[str, str | int]:
     try:
         result = subprocess.run(
