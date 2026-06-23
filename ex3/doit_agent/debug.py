@@ -12,7 +12,7 @@ import time
 # ──────────────────────────────────────────────
 # Global switch — flip this or set DOIT_DEBUG=1
 # ──────────────────────────────────────────────
-DEBUG: bool = True#os.getenv("DOIT_DEBUG", "1").strip().lower() in {"1", "true", "yes", "y"}
+DEBUG: bool = os.getenv("DOIT_DEBUG", "0").strip().lower() in {"1", "true", "yes", "y"}
 
 
 def trace(fn):
