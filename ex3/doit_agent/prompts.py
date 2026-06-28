@@ -66,6 +66,16 @@ def format_history(records: list[InteractionRecord]) -> str:
     return "\n\n".join(chunks)
 
 
+def format_sessions(sessions: dict[str, list[InteractionRecord]]) -> str:
+    if not sessions:
+        return "No other terminal sessions."
+    blocks: list[str] = []
+    for sid, records in sessions.items():
+        cwd = records[-1].cwd if records else "?"
+        blocks.append(f"Session {sid} (cwd: {cwd}):\n{format_history(records)}")
+    return "\n\n".join(blocks)
+
+
 def format_memories(memories: list[MemoryRecord]) -> str:
     if not memories:
         return "No stored user memories."
@@ -79,7 +89,7 @@ def build_agent_messages(
     cwd: str,
     session_id: str,
     same_session_history: list[InteractionRecord],
-    global_history: list[InteractionRecord],
+    other_sessions: dict[str, list[InteractionRecord]],
     memories: list[MemoryRecord],
     recent_shell_commands: list[ShellHistoryEntry],
     session_summary: str | None,
@@ -92,23 +102,24 @@ Your job:
 2. If the user asks a normal question, answer normally.
 3. If the user refers to previous interactions, use the provided history.
 4. Prefer same-session history for ambiguous references like "them", "that", "do it again".
-5. Use global history only when the user explicitly refers to another terminal, another session, or earlier work.
+5. Other terminal sessions are shown below as separate, labeled streams ("Session <id>"). Each is a distinct terminal window with its own cwd and history. Use them only when the user explicitly refers to another terminal/window/session or earlier work done elsewhere (e.g. "the task we did in window 2"); resolve the reference against the matching stream.
 6. Use recent external shell commands when the user asks about what they did manually outside doit.
 7. Use stored memories when the user refers to remembered folders, preferences, or facts.
-8. If the user request is ambiguous, ask a clarification question.
-9. Return only valid JSON.
+8. If the user request is ambiguous, ask a clarification question (e.g. ask for a list of files sorted but didn't specifiy by size, 
+name, date).
+9. Return ONLY raw JSON. Do NOT wrap the JSON in Markdown backticks (e.g., no ```json). Do NOT add any conversational text before or after the JSON. Your entire response must be perfectly parseable by Python's json.loads().
 10. If the user refers to a named location, folder, preference, or fact (e.g. "my advanced AI course folder") that does NOT appear in stored memories and cannot be inferred from history or context:
-   - If there is NO matching entry at all → use intent "answer" and tell the user you don't know which one they mean (e.g. "I couldn't find a stored folder called 'advanced AI course'. Try telling me its path or saving it with 'remember that my X folder is /path'.").
+   - If there is NO matching entry at all → use intent "answer" and tell the user you don't know which one they mean (e.g. "I don’t have a folder by that name in my memory. I can help if you tell me the path or use “remember that my [short name] folder is /path/to/folder” to store it.").
    - If there are 2 or more possible matches → use intent "clarification" and list the options so the user can pick one.
    - Never guess or fabricate a path.
+11. If the previous history shows a command failed (e.g. non-zero returncode or a stderr about policy violations), DO NOT return an error intent or repeat the same command. Instead, learn from the error and propose a DIFFERENT, fixed command that complies with the rules.
 
 Important command rules:
-- Produce only one command when intent is execute_command.
+- Produce ONLY one simple command when intent is execute_command. Do NOT use multiple lines, &&, ||, or unescaped semicolons. Do NOT use subshells like $(...).
 - Prefer bash commands.
 - Do not wrap the command in markdown.
 - Do not include explanations inside the command.
 - If there are no clarification options, return "clarification_options": [].
-- If the desired command is cd, output a plain cd command. The caller may handle shell integration separately.
 - before storing in memory , understand the entire context from the user query
 The current security mode is: env.secure={secure}.
 
@@ -131,8 +142,8 @@ Session summary:
 Same-session recent history:
 {format_history(same_session_history)}
 
-Global recent history:
-{format_history(global_history)}
+Other terminal sessions (separate streams):
+{format_sessions(other_sessions)}
 
 Recent external shell commands run by the user outside doit:
 {format_shell_history(recent_shell_commands)}

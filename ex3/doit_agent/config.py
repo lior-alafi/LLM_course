@@ -8,7 +8,7 @@ class ModelConfig:
     provider: str; model: str;api_key:str|None=None; api_base: str|None=None; api_key_env: str|None=None
 @dataclass(frozen=True)
 class AgentConfig:
-    shell: str='/bin/bash'; secure: bool=False; max_clarification_rounds:int=2
+    shell: str='/bin/bash'; secure: bool=False; max_clarification_rounds:int=2; command_timeout:int=20
 @dataclass(frozen=True)
 class StateConfig:
     backend: str='file'; redis_url: str|None=None
@@ -46,8 +46,9 @@ class ConfigLoader:
         secure_cfg=p.getboolean('agent','secure',fallback=False); secure_env=_parse_bool_env(os.getenv('DOIT_SECURE'))
         secure=secure_env if secure_env is not None else secure_cfg
         max_clar=p.getint('agent','max_clarification_rounds',fallback=2)
+        cmd_timeout=p.getint('agent','command_timeout',fallback=20)
         state_backend=p.get('state','backend',fallback='file'); state_redis=p.get('state','redis_url',fallback=None)
         mem_backend=p.get('memory','backend',fallback='file'); mem_redis=p.get('memory','redis_url',fallback=None)
         ua_enabled=p.getboolean('user_awareness','enabled',fallback=True); shell_hist_limit=p.getint('user_awareness','shell_history_limit',fallback=20)
         summ_enabled=p.getboolean('context','summaries_enabled',fallback=True); summ_threshold=p.getint('context','summary_threshold',fallback=5); summ_keep=p.getint('context','summary_recent_keep',fallback=8)
-        return DoitConfig(ModelConfig(provider,model,api_key,api_base,api_key_env), AgentConfig(shell,secure,max_clar), StateConfig(state_backend,state_redis), MemoryConfig(mem_backend,mem_redis), UserAwarenessConfig(ua_enabled,shell_hist_limit), ContextConfig(summ_enabled,summ_threshold,summ_keep))
+        return DoitConfig(ModelConfig(provider,model,api_key,api_base,api_key_env), AgentConfig(shell,secure,max_clar,cmd_timeout), StateConfig(state_backend,state_redis), MemoryConfig(mem_backend,mem_redis), UserAwarenessConfig(ua_enabled,shell_hist_limit), ContextConfig(summ_enabled,summ_threshold,summ_keep))

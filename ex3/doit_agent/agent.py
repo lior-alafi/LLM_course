@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import os
+import sys
 
-from doit_agent.command_policy import SingleCommandPolicy
+from doit_agent.command_policy import SingleCommandPolicy, needs_parent_shell
 from doit_agent.config import DoitConfig
 from doit_agent.context_summary import ContextSummaryService
 from doit_agent.debug import trace
@@ -68,10 +69,10 @@ class DoitAgent:
             session_id=self.session_id,
         )
 
-        global_history = self.state_store.get_recent_interactions(
-            limit=3,
-            session_id=None,
-        )
+        # Other terminal windows as separate, labeled streams so references like
+        # "the task we did in window 2" can resolve against the right session.
+        other_sessions = self.state_store.get_recent_sessions(limit=3)
+        other_sessions.pop(self.session_id, None)
 
         memories = self.memory_store.list_memories()
 
@@ -91,14 +92,13 @@ class DoitAgent:
             cwd=os.getcwd(),
             session_id=self.session_id,
             same_session_history=same_session_history,
-            global_history=global_history,
+            other_sessions=other_sessions,
             memories=memories,
             recent_shell_commands=recent_shell_commands,
             session_summary=session_summary,
         )
-
         raw = self.llm.complete_text(messages)
-
+        # print(raw)
         try:
             data = extract_json_object(raw)
             # print(data)
@@ -152,7 +152,6 @@ class DoitAgent:
         else:
             # Read raw bytes and decode manually so non-UTF-8 keystrokes
             # (e.g. Hebrew keyboard input on a mis-configured locale) don't crash.
-            import sys
             sys.stdout.write("Your answer: ")
             sys.stdout.flush()
             raw_bytes = sys.stdin.buffer.readline()
@@ -291,9 +290,22 @@ class DoitAgent:
                 return 1
 
             if safety.requires_confirmation:
-                print(f"Security check: {safety.safety_level} [{safety.source}]")
-                print(safety.explanation)
-                answer = input("Proceed? [y/N] ").strip().lower()
+                prompt_msg = (
+                    f"Security check: {safety.safety_level} [{safety.source}]\n"
+                    f"{safety.explanation}\n"
+                    f"Proceed? [y/n] {command}\n"
+                )
+                try:
+                    with open("/dev/tty", "r+", encoding="utf-8", errors="replace") as tty:
+                        tty.write(prompt_msg)
+                        tty.flush()
+                        answer = tty.readline().strip().lower()
+                except OSError:
+                    sys.stderr.write(prompt_msg)
+                    sys.stderr.flush()
+                    raw_bytes = sys.stdin.buffer.readline()
+                    answer = raw_bytes.decode("utf-8", errors="replace").strip().lower()
+                
                 user_confirmed = answer == "y"
 
                 if not user_confirmed:
@@ -314,11 +326,53 @@ class DoitAgent:
         if memory_actions:
             print(f"\nMemory actions: {', '.join(memory_actions)}")
 
-        # Emit a marker that the shell wrapper will eval in the real shell.
-        # This is the only way to make cd, export, source, alias, and all
-        # other shell built-ins actually take effect in the user's terminal.
-        # The Python process never runs the command itself.
-        print(f"DOIT_EXEC:{command}")
+        if needs_parent_shell(command):
+            # Shell-mutating commands (cd, export, source, alias, ...) must run
+            # in the real shell. Emit a marker the wrapper will eval there.
+            # We cannot capture their output, and they produce little anyway.
+            print(f"DOIT_EXEC:{command}")
+
+            self._save_interaction(
+                query=query,
+                decision=decision,
+                command=command,
+                safety=safety,
+                user_confirmed=user_confirmed,
+                stdout="",   # ran in the real shell, not captured here
+                stderr="",
+                returncode=0,
+            )
+            self._maybe_update_context_summary()
+            return 0
+
+        # Everything else runs in-process so we can capture stdout/stderr/rc.
+        # This is what makes output-awareness ("why did that fail?", "which is
+        # safe to delete?") work: the captured output is saved to history.
+        # The subprocess inherits Python's cwd, which already tracks the user's
+        # terminal (prior `doit cd` went through the DOIT_EXEC path above).
+        print(f"\033[0;36m▶ {command}\033[0m")
+        result = run_shell(
+            command,
+            shell=self.config.agent.shell,
+            timeout=self.config.agent.command_timeout,
+        )
+        stdout = str(result["stdout"])
+        stderr = str(result["stderr"])
+        returncode = int(result["returncode"])
+
+        # Always emit newline-terminated lines: the shell wrapper reads our
+        # output with `while read`, which silently drops a trailing line that
+        # has no newline. Never leave the user with a blank, silent result.
+        def _emit(text: str, stream) -> None:
+            if not text:
+                return
+            stream.write(text if text.endswith("\n") else text + "\n")
+            stream.flush()
+
+        _emit(stdout, sys.stdout)
+        _emit(stderr, sys.stderr)
+        if not stdout and not stderr:
+            print(f"(command exited with code {returncode}, no output)")
 
         self._save_interaction(
             query=query,
@@ -326,13 +380,13 @@ class DoitAgent:
             command=command,
             safety=safety,
             user_confirmed=user_confirmed,
-            stdout="",   # output will appear in the real shell, not captured here
-            stderr="",
-            returncode=0,
+            stdout=stdout,
+            stderr=stderr,
+            returncode=returncode,
         )
 
         self._maybe_update_context_summary()
-        return 0
+        return returncode
 
     @trace
     def _maybe_update_context_summary(self) -> None:
