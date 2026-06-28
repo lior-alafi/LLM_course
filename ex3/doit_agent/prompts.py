@@ -115,7 +115,9 @@ name, date).
 11. If the previous history shows a command failed (e.g. non-zero returncode or a stderr about policy violations), DO NOT return an error intent or repeat the same command. Instead, learn from the error and propose a DIFFERENT, fixed command that complies with the rules.
 
 Important command rules:
-- Produce ONLY one simple command when intent is execute_command. Do NOT use multiple lines, &&, ||, or unescaped semicolons. Do NOT use subshells like $(...).
+- Produce ONLY one simple command when intent is execute_command. Do NOT use multiple lines, &&, ||, or unescaped semicolons at the top level. You MAY use them safely inside quoted string arguments (e.g., inside '...' for sh -c). 
+- When using `sh -c '...'`, write symbols like &&, ||, and $ NORMALLY inside the single quotes. NEVER add backslashes before them.
+  Example: find . -exec sh -c 'test -f {{}} && echo $(date)' \;
 - Prefer bash commands.
 - Do not wrap the command in markdown.
 - Do not include explanations inside the command.
