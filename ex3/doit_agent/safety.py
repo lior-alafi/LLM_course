@@ -94,8 +94,12 @@ class RuleBasedSafetyClassifier:
                     source="rule_based",
                 )
 
+        # Strip quoted strings before checking modifying patterns to avoid
+        # false positives from awk/sed scripts that use > as a comparison
+        # operator (e.g. `awk '$1 > today'`) rather than a shell redirect.
+        unquoted = re.sub(r"'[^']*'", "", re.sub(r'"[^"]*"', "", normalized))
         for pattern in self.MODIFYING_PATTERNS:
-            if re.search(pattern, normalized):
+            if re.search(pattern, unquoted):
                 return SafetyDecision(
                     safety_level="modifies_filesystem",
                     requires_confirmation=True,

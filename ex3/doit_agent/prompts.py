@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 from doit_agent.memory.models import MemoryRecord
 from doit_agent.state.models import InteractionRecord
@@ -41,6 +42,7 @@ CONTEXT_SUMMARY_SCHEMA = {"summary": "string"}
 def shorten(text: str | None, max_chars: int = 1200) -> str:
     if not text:
         return ""
+    text = text.replace("```", "[markdown fence]")
     if len(text) <= max_chars:
         return text
     return text[:max_chars] + "\n...[truncated]..."
@@ -82,6 +84,43 @@ def format_memories(memories: list[MemoryRecord]) -> str:
     return "\n".join(f"- {m.key}: {m.value} (updated_at={m.updated_at})" for m in memories)
 
 
+_STOP_WORDS = {"", "my", "the", "a", "an", "to", "in", "of", "for", "at", "is", "it", "s"}
+
+
+def _normalize_key(text: str) -> str:
+    return re.sub(r"[\s_]+", "_", text.lower().strip()).strip("_")
+
+
+def _token_overlap_score(key: str, query: str) -> float:
+    key_tokens = set(re.split(r"[\s_]+", key.lower())) - _STOP_WORDS
+    query_tokens = set(re.split(r"\W+", query.lower())) - _STOP_WORDS
+    if not key_tokens:
+        return 0.0
+    return len(key_tokens & query_tokens) / len(key_tokens)
+
+
+def resolve_memory_references(query: str, memories: list[MemoryRecord]) -> list[tuple[str, str]]:
+    """Return (key, value) pairs whose key matches the query — exact substring first, token overlap fallback."""
+    q = _normalize_key(query)
+    matches = []
+    for m in memories:
+        key_norm = _normalize_key(m.key)
+        if not key_norm:
+            continue
+        if key_norm in q:
+            matches.append((m.key, m.value))
+        elif _token_overlap_score(m.key, query) >= 0.6:
+            matches.append((m.key, m.value))
+    return matches
+
+
+def format_resolved_memories(matches: list[tuple[str, str]]) -> str:
+    if not matches:
+        return ""
+    lines = "\n".join(f"- '{k}' = {v}" for k, v in matches)
+    return f"Pre-resolved memory references found in this query (use these values directly):\n{lines}"
+
+
 def build_agent_messages(
     *,
     user_query: str,
@@ -105,23 +144,29 @@ Your job:
 5. Other terminal sessions are shown below as separate, labeled streams ("Session <id>"). Each is a distinct terminal window with its own cwd and history. Use them only when the user explicitly refers to another terminal/window/session or earlier work done elsewhere (e.g. "the task we did in window 2"); resolve the reference against the matching stream.
 6. Use recent external shell commands when the user asks about what they did manually outside doit.
 7. Use stored memories when the user refers to remembered folders, preferences, or facts.
-   IMPORTANT: When matching user references to stored memories, do fuzzy/semantic matching on the key names.
-   For example, if the user says "my study main folder" and a memory key is "study_main_folder", that IS a match — use it.
-   Keys use underscores instead of spaces, and words may be abbreviated or reordered slightly.
-   Always check ALL stored memory keys before concluding that a reference is unknown.
-8. If the user request is ambiguous, ask a clarification question (e.g. ask for a list of files sorted but didn't specifiy by size, 
-name, date).
-9. Return ONLY raw JSON. Do NOT wrap the JSON in Markdown backticks (e.g., no ```json). Do NOT add any conversational text before or after the JSON. Your entire response must be perfectly parseable by Python's json.loads().
+   CRITICAL: If "Pre-resolved memory references" appear in the context, those are authoritative — a Python function already matched the memory key to the query. Use the resolved value directly, no further matching needed.
+   For anything NOT pre-resolved: check ALL stored memory keys before concluding a reference is unknown.
+8. If the user request is ambiguous, ask a clarification question (e.g. ask for a list of files sorted but didn't specify by size, name, date).
+9. Return ONLY raw JSON. Do NOT wrap the JSON in Markdown code fences. Do NOT add any conversational text before or after the JSON. Your entire response must be perfectly parseable by Python's json.loads().
 10. If the user refers to a named location, folder, preference, or fact (e.g. "my advanced AI course folder") that does NOT appear in stored memories AND cannot be inferred from history or context even with fuzzy matching:
+   - EXCEPTION: If the user provides an explicit absolute or resolvable path inline in the query (e.g. "move to /mnt/c/foo this is my X folder"), always execute the command using that explicit path. Do NOT apply this rule to reject an explicit path — only apply it for NAMED references where no path is given.
    - If there is NO matching entry at all → use intent "answer" and tell the user you don't know which one they mean (e.g. "I don't have a folder by that name in my memory. I can help if you tell me the path or use "remember that my [short name] folder is /path/to/folder" to store it.").
    - If there are 2 or more possible matches → use intent "clarification" and list the options so the user can pick one.
    - Never guess or fabricate a path.
 11. If the previous history shows a command failed (e.g. non-zero returncode or a stderr about policy violations), DO NOT return an error intent or repeat the same command. Instead, learn from the error and propose a DIFFERENT, fixed command that complies with the rules.
+12. If the user requests a shell ACTION (find, search, list, show, move, cd, navigate, create, delete, run, copy, etc.), ALWAYS use intent: execute_command. Do NOT use "answer" or "conversation" to describe what you think the result would be — always run the command and let the shell answer.
 
 Important command rules:
-- Produce ONLY one simple command when intent is execute_command. Do NOT use multiple lines, &&, ||, or unescaped semicolons at the top level. You MAY use them safely inside quoted string arguments (e.g., inside '...' for sh -c). 
-- When using `sh -c '...'`, write symbols like &&, ||, and $ NORMALLY inside the single quotes. NEVER add backslashes before them.
-  Example: find . -exec sh -c 'test -f {{}} && echo $(date)' \;
+- Produce ONLY one simple command when intent is execute_command. Do NOT use multiple lines, &&, ||, or unescaped semicolons at the top level. You MAY use them safely inside quoted string arguments (e.g., inside '...' for bash -c).
+- When using `-exec ... \;` and you need a shell script per file, use `bash -c '...' _ {{}}` and refer to the file as `"$1"` inside the script. NEVER embed {{}} directly inside the script body — filenames with spaces will break it.
+  WRONG: find . -exec bash -c 'echo {{}}' \;
+  RIGHT: find . -exec bash -c 'echo "$1"' _ {{}} \;
+- NEVER use `sh -c` — use `bash -c`. `sh` is POSIX dash and does not support all bash syntax.
+- NEVER add backslashes before $ inside single-quoted strings. Single quotes already protect everything — \$ inside single quotes is a bug, not an escape.
+- Prefer native `find` predicates over `bash -c` scripts whenever possible:
+  - Files modified today: find . -type f -newermt "$(date +%Y-%m-%d)" -not -path '*/.git/*' -not -path '*/.venv/*' -not -path '*/__pycache__/*'
+  - Files larger than N: find . -type f -size +NM
+  - Files by extension: find . -name "*.ext"
 - Prefer bash commands.
 - Do not wrap the command in markdown.
 - Do not include explanations inside the command.
@@ -133,6 +178,9 @@ JSON schema:
 {json.dumps(AGENT_SCHEMA, indent=2)}
 """.strip()
 
+    resolved = resolve_memory_references(user_query, memories)
+    resolved_block = format_resolved_memories(resolved)
+
     context = f"""
 Current environment:
 - cwd: {cwd}
@@ -141,6 +189,8 @@ Current environment:
 
 Stored memories:
 {format_memories(memories)}
+
+{resolved_block + chr(10) if resolved_block else ""}\
 
 Session summary:
 {session_summary or "No compacted session summary."}
