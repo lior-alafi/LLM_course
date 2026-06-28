@@ -293,13 +293,15 @@ class DoitAgent:
                 prompt_msg = (
                     f"Security check: {safety.safety_level} [{safety.source}]\n"
                     f"{safety.explanation}\n"
-                    f"Proceed? [y/n] {command}\n"
+                    f"Command: {command}\n"
+                    f"Proceed? [y/n]\n"
                 )
                 try:
                     with open("/dev/tty", "r+", encoding="utf-8", errors="replace") as tty:
                         tty.write(prompt_msg)
                         tty.flush()
                         answer = tty.readline().strip().lower()
+                        print(f"\nYour answer: {answer}")
                 except OSError:
                     sys.stderr.write(prompt_msg)
                     sys.stderr.flush()

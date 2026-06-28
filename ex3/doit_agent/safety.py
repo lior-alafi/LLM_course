@@ -34,6 +34,7 @@ class RuleBasedSafetyClassifier:
     ]
 
     MODIFYING_PATTERNS = [
+        r"\brm\b",
         r"\bmkdir\b",
         r"\btouch\b",
         r"\bmv\b",

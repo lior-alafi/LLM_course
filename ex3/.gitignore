@@ -5,3 +5,9 @@ CLAUDE.md
 assignment.txt
 assignemnt.txt
 report.md
+doit.cfg
+.doit/
+.venv/
+.claude/
+__pycache__/
+*.pyc

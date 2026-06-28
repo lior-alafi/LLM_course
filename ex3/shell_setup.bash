@@ -70,6 +70,11 @@ doit() {
   # stdbuf -oL forces Python's stdout to line-buffer mode so lines arrive
   # promptly even when the output is a pipe and not a TTY.
 
+  local _PY="$_DOIT_SCAFFOLD_DIR/.venv/bin/python"
+  if [ ! -x "$_PY" ]; then
+    _PY="python3"
+  fi
+
   local _exec_cmd=""
   local _agent_exit
 
@@ -79,7 +84,7 @@ doit() {
     else
       printf '%s\n' "$_line"
     fi
-  done < <(stdbuf -oL python3 "$_DOIT_BIN" "$@" 2>&1)
+  done < <(stdbuf -oL "$_PY" "$_DOIT_BIN" "$@" 2>&1)
   _agent_exit=$?
 
   # ── Execute the intercepted command in THIS shell ──────────────────────────
