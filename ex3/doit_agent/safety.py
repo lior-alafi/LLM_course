@@ -44,8 +44,8 @@ class RuleBasedSafetyClassifier:
         r"\bpip\s+install\b",
         r"\bapt\s+install\b",
         r"\bbrew\s+install\b",
-        r">\s*[^&|;]+",
-        r">>\s*[^&|;]+",
+        r">\s*(?!/dev/null\b|&\d)[^&|;]+",
+        r">>\s*(?!/dev/null\b|&\d)[^&|;]+",
         r"\bsed\s+-i\b",
         r"\btee\b",
     ]

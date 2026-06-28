@@ -35,6 +35,7 @@ def main() -> int:
                     prompt_logger=PromptLogger(verbose_level=args.verbose),
                     verbose_level=args.verbose)
     # print("Created agent")
+    # print(f"command time_out:{agent.config.agent.command_timeout}")
     return agent.run(query)
 if __name__=='__main__':
     raise SystemExit(main())

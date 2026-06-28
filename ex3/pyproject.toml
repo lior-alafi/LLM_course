@@ -4,4 +4,16 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "dotenv>=0.9.9",
+    "huggingface-hub>=1.16.1",
+    "langchain-ollama>=1.1.0",
+    "pydantic>=2.13.4",
+    "transformers>=5.9.0",
+    "langchain",
+    "google-genai>=2.8.0",
+    "langchain-google-genai>=4.2.5",
+    "langchain-core>=1.4.7",
+    "filelock>=3.29.0",
+    "litellm>=1.69.0",
+]

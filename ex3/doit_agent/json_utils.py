@@ -27,27 +27,37 @@ def extract_json_object(raw: str) -> dict[str, Any]:
     raw = raw.strip()
 
     try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
+        return json.loads(raw, strict=False)
+    except json.JSONDecodeError as e:
+        print("JsonDecodeError [raw parse failed]:", e)
         pass
 
     # Normalize Python literals before attempting further parsing.
     normalized = _normalize_python_literals(raw)
 
     try:
-        return json.loads(normalized)
-    except json.JSONDecodeError:
+        return json.loads(normalized, strict=False)
+    except json.JSONDecodeError as e:
+        print("JsonDecodeError [normalized parse failed]:", e)
         pass
 
     # Remove common markdown fence.
     fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", normalized, re.DOTALL)
     if fenced:
-        return json.loads(fenced.group(1))
+        try:
+            return json.loads(fenced.group(1), strict=False)
+        except json.JSONDecodeError as e:
+            print("JsonDecodeError [markdown fence parse failed]:", e)
+            pass
 
     # Fallback: first {...} block.
     start = normalized.find("{")
     end = normalized.rfind("}")
     if start != -1 and end != -1 and end > start:
-        return json.loads(normalized[start : end + 1])
+        try:
+            return json.loads(normalized[start : end + 1], strict=False)
+        except json.JSONDecodeError as e:
+            print("JsonDecodeError [fallback {...} parse failed]:", e)
+            pass
 
     raise json.JSONDecodeError("Could not find JSON object", raw, 0)
