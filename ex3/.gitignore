@@ -11,3 +11,4 @@ doit.cfg
 .claude/
 __pycache__/
 *.pyc
+.idea/
