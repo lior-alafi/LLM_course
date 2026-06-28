@@ -65,7 +65,8 @@ doit() {
   #
   # Fix: pipe Python's output through a while-read loop.  Each line is printed
   # immediately as it arrives.  We intercept only the DOIT_EXEC: marker line.
-  # stderr is sent directly to the terminal (not piped) so errors always show.
+  # stderr is merged into stdout so prompts and errors stream through the same
+  # line reader. Python stdin is kept on /dev/tty so confirmations are readable.
   #
   # stdbuf -oL forces Python's stdout to line-buffer mode so lines arrive
   # promptly even when the output is a pipe and not a TTY.
@@ -84,7 +85,7 @@ doit() {
     else
       printf '%s\n' "$_line"
     fi
-  done < <(stdbuf -oL "$_PY" "$_DOIT_BIN" "$@" 2>&1)
+  done < <(stdbuf -oL "$_PY" "$_DOIT_BIN" "$@" < /dev/tty 2>&1)
   _agent_exit=$?
 
   # ── Execute the intercepted command in THIS shell ──────────────────────────

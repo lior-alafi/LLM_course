@@ -36,6 +36,6 @@ def run_shell(
     except subprocess.TimeoutExpired as e:
         return {
             "stdout": e.stdout or "",
-            "stderr": (e.stderr or "") + f"\nCommand timed out after {timeout} seconds.",
+            "stderr": ((e.stderr or "") + f"\nCommand timed out after {timeout} seconds."),
             "returncode": 124,
         }

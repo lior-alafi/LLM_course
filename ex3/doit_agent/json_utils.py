@@ -19,18 +19,24 @@ def _normalize_python_literals(text: str) -> str:
     return text
 
 
-def extract_json_object(raw: str) -> dict[str, Any]:
+def extract_json_object(raw: str | None) -> dict[str, Any]:
     """
     Tries to parse raw model output as JSON.
     If the model wrapped JSON in markdown or extra text, extract the first JSON object.
     """
+    if raw is None:
+        raise json.JSONDecodeError("Model returned no content", "", 0)
+
     raw = raw.strip()
+    if not raw:
+        raise json.JSONDecodeError("Model returned empty content", raw, 0)
+
+    errors: list[str] = []
 
     try:
         return json.loads(raw, strict=False)
     except json.JSONDecodeError as e:
-        print("JsonDecodeError [raw parse failed]:", e)
-        pass
+        errors.append(f"raw parse failed: {e}")
 
     # Normalize Python literals before attempting further parsing.
     normalized = _normalize_python_literals(raw)
@@ -38,8 +44,7 @@ def extract_json_object(raw: str) -> dict[str, Any]:
     try:
         return json.loads(normalized, strict=False)
     except json.JSONDecodeError as e:
-        print("JsonDecodeError [normalized parse failed]:", e)
-        pass
+        errors.append(f"normalized parse failed: {e}")
 
     # Remove common markdown fence.
     fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", normalized, re.DOTALL)
@@ -47,8 +52,7 @@ def extract_json_object(raw: str) -> dict[str, Any]:
         try:
             return json.loads(fenced.group(1), strict=False)
         except json.JSONDecodeError as e:
-            print("JsonDecodeError [markdown fence parse failed]:", e)
-            pass
+            errors.append(f"markdown fence parse failed: {e}")
 
     # Fallback: first {...} block.
     start = normalized.find("{")
@@ -57,7 +61,7 @@ def extract_json_object(raw: str) -> dict[str, Any]:
         try:
             return json.loads(normalized[start : end + 1], strict=False)
         except json.JSONDecodeError as e:
-            print("JsonDecodeError [fallback {...} parse failed]:", e)
-            pass
+            errors.append(f"fallback {{...}} parse failed: {e}")
 
-    raise json.JSONDecodeError("Could not find JSON object", raw, 0)
+    detail = "; ".join(errors) if errors else "no JSON object delimiters found"
+    raise json.JSONDecodeError(f"Could not parse JSON object ({detail})", raw, 0)

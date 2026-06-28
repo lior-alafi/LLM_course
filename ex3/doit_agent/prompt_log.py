@@ -2,13 +2,16 @@ from __future__ import annotations
 from pathlib import Path
 from datetime import datetime, timezone
 import json, uuid
+import re
 from typing import Any
 class PromptLogger:
     def __init__(self, base_dir:Path|None=None, verbose_level:int=0):
         self.base_dir=base_dir or (Path(__file__).resolve().parent.parent/'.doit'/'logs'); self.base_dir.mkdir(parents=True,exist_ok=True); self.verbose_level=verbose_level
     def log(self, *, acdl_spec:str, model:str, messages:list[dict[str,str]], raw_response:str, parsed_response:dict[str,Any]|None=None)->None:
         rec={'id':str(uuid.uuid4()), 'timestamp':datetime.now(timezone.utc).isoformat(), 'acdl_spec':acdl_spec, 'model':model, 'messages':messages, 'raw_response':raw_response, 'parsed_response':parsed_response}
-        path=self.base_dir / f"{rec['timestamp'].replace(':','-')}_{rec['id']}.json"
+        spec_dir=self.base_dir / _safe_log_dir_name(acdl_spec)
+        spec_dir.mkdir(parents=True,exist_ok=True)
+        path=spec_dir / f"{rec['timestamp'].replace(':','-')}_{rec['id']}.json"
         path.write_text(json.dumps(rec,ensure_ascii=False,indent=2),encoding='utf-8')
         self._maybe_print(rec,path)
     def _maybe_print(self, rec:dict[str,Any], path:Path)->None:
@@ -30,6 +33,9 @@ class PromptLogger:
         print('='*80+'\n')
 def _shorten(text:str, max_chars:int)->str:
     return text if len(text)<=max_chars else text[:max_chars]+'\n...[truncated]...'
+def _safe_log_dir_name(acdl_spec:str)->str:
+    name=re.sub(r'[^A-Za-z0-9_.-]+','_',acdl_spec.strip())
+    return name.strip('._') or 'unknown'
 def _load_acdl_text(acdl_spec:str)->str|None:
     mapping={'DoitAgentStateful':'acdl/doit_agent_stateful.acdl','DoitMemoryExtraction':'acdl/doit_memory_extraction.acdl','DoitSafetyCheck':'acdl/v2_safety.acdl','DoitClarification':'acdl/v5_clarifications.acdl','DoitContextSummary':'acdl/v9_extension_context_summary.acdl'}
     rel=mapping.get(acdl_spec)
