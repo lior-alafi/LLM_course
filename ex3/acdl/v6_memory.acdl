@@ -1,6 +1,0 @@
-DoitMemory[@T]: {
-    ExistingMemory { ForEach(m: sys.user_memories) { U: { sys.memory.key[m] sys.memory.value[m] } } }
-    MemoryExtraction { S: { MEMORY_EXTRACTOR_ROLE MEMORY_STORAGE_AND_DELETION_POLICY } U: env.user_query[@T] }
-    If resp.memory_action[@T] == "store" { T: sys.memory_store.upsert_memory[@T] }
-    If resp.memory_action[@T] == "delete" { T: sys.memory_store.delete_memory[@T] }
-}

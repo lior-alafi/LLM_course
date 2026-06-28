@@ -1,0 +1,64 @@
+DoitScenarioUserShellHistoryAwareness[@T]: {
+    // ExternalUserActionsBeforeDoit {
+        T: {
+            sys.shell_history.external_command_1[@T]
+            sys.shell_history.external_command_2[@T]
+            sys.shell_history.external_command_3[@T]
+            env.cwd[@T]
+        }
+    //
+
+    // Invocation {
+        U: {
+            env.user_query[@T]
+            env.cwd[@T]
+            env.session_id[@T]
+        }
+    //
+
+    // ShellHistoryLoad {
+        T: {
+            sys.shell_history.loaded[@T]
+            sys.shell_history.distinguished_user_vs_doit_commands[@T]
+        }
+    //
+
+    // MainAgentLLMCall {
+        S: {
+            DOIT_AGENT_ROLE
+            USER_SHELL_AWARENESS_POLICY
+            JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            sys.recent_external_shell_commands[@T]
+            sys.same_session_recent_history[@T]
+            env.cwd[@T]
+            env.user_query[@T]
+        }
+
+        A: {
+            resp.intent[@T]
+            resp.command[@T]
+            resp.answer[@T]
+            resp.explanation[@T]
+        }
+    //
+
+    // RuntimeResult {
+        T: {
+            sys.execution.performed[@T]
+            sys.executed_command[@T]
+            sys.stdout[@T]
+            sys.stderr[@T]
+            sys.returncode[@T]
+        }
+    //
+
+    // Persistence {
+        T: {
+            sys.state_store.append_interaction[@T]
+            sys.prompt_logger.saved_agent_call[@T]
+        }
+    //
+}

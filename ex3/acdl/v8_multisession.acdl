@@ -1,6 +1,0 @@
-DoitMultiSession[@T]: {
-    CurrentSession { U: { env.session_id[@T] env.cwd[@T] } }
-    SameSessionHistory { ForEach(t: sys.same_session_recent_turns) { U: env.user_query[@t] A: resp.command[@t] } }
-    GlobalHistory { ForEach(t: sys.global_recent_turns) { U: { env.session_id[@t] env.user_query[@t] } A: resp.command[@t] } }
-    CurrentTurn { U: env.user_query[@T] }
-}

@@ -22,10 +22,10 @@ def main() -> int:
         print('Usage: doit [-v|-vv] "<your query>"')
         return 1
     query=' '.join(args.query).strip()
-    import os
-    from pathlib import Path
-    config_path= Path(Path(__file__).resolve().parent)/"doit.cfg"
-    config=ConfigLoader(config_path).load()
+    # ConfigLoader defaults to ~/doit.cfg. The installer creates that file.
+    # Keeping runtime config outside the project makes WSL/Linux installs
+    # machine-specific and avoids committing API keys or local host addresses.
+    config=ConfigLoader().load()
     # print("Loaded config")
     llm=LLMFactory.create(config.model)
     # print("Created LLM")

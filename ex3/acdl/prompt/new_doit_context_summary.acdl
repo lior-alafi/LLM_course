@@ -1,0 +1,35 @@
+DoitContextSummary[@T]: {
+    // Setup {
+        S: {
+            SUMMARIZE_LONG_HISTORY_FOR_FUTURE_AGENT_CONTEXT
+            CONTEXT_SUMMARY_POLICY
+            CONTEXT_SUMMARY_JSON_OUTPUT_SCHEMA
+        }
+    //
+
+    // PreviousSummary {
+        U: {
+            sys.previous_session_summary[@T]
+        }
+    //
+
+    // OlderInteractions {
+        U: {
+            ForEach(t: sys.older_session_interactions) {
+                env.user_query[t]
+                resp.intent[t]
+                resp.command[t]
+                resp.answer[t]
+                resp.stdout[t]
+                resp.stderr[t]
+                resp.returncode[t]
+            }
+        }
+    //
+
+    // SummaryResult {
+        A: {
+            resp.summary[@T]
+        }
+    //
+}

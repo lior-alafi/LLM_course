@@ -1,99 +1,96 @@
-# Add this to ~/.bashrc or ~/.zshrc.
-# It creates one stable session id per terminal window.
+# shell_setup.bash — shell integration for doit.
+# Source this file from ~/.bashrc or ~/.zshrc.
+# The installer adds it to ~/.bashrc automatically.
 
-if [ -z "$DOIT_SESSION_ID" ]; then
-  export DOIT_SESSION_ID="$(uuidgen 2>/dev/null || python3 -c 'import uuid; print(uuid.uuid4())')"
+# One stable session id per terminal window. This allows multi-terminal state.
+if [ -z "${DOIT_SESSION_ID:-}" ]; then
+  if command -v uuidgen >/dev/null 2>&1; then
+    export DOIT_SESSION_ID="$(uuidgen)"
+  else
+    export DOIT_SESSION_ID="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+  fi
 fi
 
 # Optional secure-mode override:
 # export DOIT_SECURE=true
+# export DOIT_SECURE=false
 
-# Bash only: make commands appear in ~/.bash_history sooner.
-# This helps doit inspect recent manual user actions.
-if [ -n "$BASH_VERSION" ]; then
-  shopt -s histappend
-  export PROMPT_COMMAND="history -a; history -n${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
+# Bash: flush commands to ~/.bash_history sooner so doit can inspect recent
+# manual user actions. Avoid adding the hook twice if this file is sourced more
+# than once.
+if [ -n "${BASH_VERSION:-}" ]; then
+  shopt -s histappend 2>/dev/null || true
+  case ";${PROMPT_COMMAND:-};" in
+    *";history -a; history -n;"*) ;;
+    *) export PROMPT_COMMAND="history -a; history -n${PROMPT_COMMAND:+; $PROMPT_COMMAND}" ;;
+  esac
 fi
 
-# ---------------------------------------------------------------------------
-# Resolve the scaffold directory ONCE when this file is sourced.
-# BASH_SOURCE[0] is the path to THIS file at source time, so we resolve it
-# to an absolute path immediately.  The doit() function then uses this
-# variable so it always finds the script regardless of the caller's cwd.
-# ---------------------------------------------------------------------------
-_DOIT_SCAFFOLD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+# Resolve the project directory when this file is sourced.
+# Bash provides BASH_SOURCE. Zsh provides ${(%):-%x}. The fallback handles
+# manual export of DOIT_SCAFFOLD_DIR if a shell does not expose either.
+if [ -n "${BASH_SOURCE[0]:-}" ]; then
+  _DOIT_SETUP_FILE="${BASH_SOURCE[0]}"
+elif [ -n "${ZSH_VERSION:-}" ]; then
+  _DOIT_SETUP_FILE="${(%):-%x}"
+else
+  _DOIT_SETUP_FILE="$0"
+fi
 
-# ---------------------------------------------------------------------------
-# doit shell wrapper
-#
-# This function is the KEY to making doit commands affect the REAL shell:
-#
-#   The Python agent never runs commands itself — it just decides what to run
-#   and prints a "DOIT_EXEC:<command>" marker.  This wrapper captures that
-#   marker and runs the command with `eval` directly inside the current shell
-#   process.  That means:
-#
-#     doit move back a folder     → eval "cd .."         → directory actually changes
-#     doit set FOO to bar         → eval "export FOO=bar" → variable actually set
-#     doit load my env file       → eval "source .env"   → sourced in this shell
-#     doit create alias ll        → eval "alias ll=..."  → alias actually registered
-#     doit run git commit         → eval "git commit ..." → runs in real shell
-#
-#   Any regular output from the agent (explanations, safety messages, etc.)
-#   is printed normally.  Only the DOIT_EXEC: marker line is intercepted.
-#
-# Usage:  source this file from ~/.bashrc or ~/.zshrc, then just type:
-#
-#     doit <your request in plain English>
-# ---------------------------------------------------------------------------
+_DOIT_SCAFFOLD_DIR="${DOIT_SCAFFOLD_DIR:-$(cd "$(dirname "$_DOIT_SETUP_FILE")" 2>/dev/null && pwd)}"
+
+# Prefer the project venv created by install.bash. This is critical on WSL,
+# where calling plain python3 often misses litellm/pydantic.
+_DOIT_PROJECT_PY="$_DOIT_SCAFFOLD_DIR/.venv/bin/python"
+if [ -x "$_DOIT_PROJECT_PY" ]; then
+  _DOIT_PY="$_DOIT_PROJECT_PY"
+else
+  _DOIT_PY="$(command -v python3 || true)"
+fi
+
+# Shell wrapper. It runs the Python agent and intercepts DOIT_EXEC:<command>
+# markers so parent-shell commands such as cd/export/source affect the real
+# interactive shell.
 doit() {
-  # ── Find the real Python doit script ──────────────────────────────────────
   local _DOIT_BIN="$_DOIT_SCAFFOLD_DIR/doit"
 
   if [ ! -f "$_DOIT_BIN" ]; then
     echo "doit: cannot locate the doit Python script." >&2
     echo "      Expected: $_DOIT_BIN" >&2
-    echo "      Re-source shell_setup.bash from the scaffold directory." >&2
+    echo "      Re-run: bash install.bash" >&2
     return 1
   fi
 
-  # ── Stream output line-by-line ─────────────────────────────────────────────
-  # We used to capture everything with $(...) so we could scan for DOIT_EXEC:.
-  # The problem: $(...) buffers ALL output until Python exits, so nothing is
-  # visible while the agent runs — clarification questions, debug logs, errors
-  # all hang silently.
-  #
-  # Fix: pipe Python's output through a while-read loop.  Each line is printed
-  # immediately as it arrives.  We intercept only the DOIT_EXEC: marker line.
-  # stderr is merged into stdout so prompts and errors stream through the same
-  # line reader. Python stdin is kept on /dev/tty so confirmations are readable.
-  #
-  # stdbuf -oL forces Python's stdout to line-buffer mode so lines arrive
-  # promptly even when the output is a pipe and not a TTY.
-
-  local _PY="$_DOIT_SCAFFOLD_DIR/.venv/bin/python"
-  if [ ! -x "$_PY" ]; then
-    _PY="python3"
+  if [ -z "${_DOIT_PY:-}" ] || [ ! -x "$_DOIT_PY" ]; then
+    echo "doit: cannot locate Python." >&2
+    echo "      Re-run: bash install.bash" >&2
+    return 1
   fi
 
   local _exec_cmd=""
-  local _agent_exit
+  local _agent_status=0
+  local _stdbuf=""
 
+  if command -v stdbuf >/dev/null 2>&1; then
+    _stdbuf="stdbuf -oL"
+  fi
+
+  # Keep stdin on /dev/tty for confirmations/clarifications, while streaming
+  # stdout/stderr line-by-line through this wrapper.
   while IFS= read -r _line; do
-    if [[ "$_line" == DOIT_EXEC:* ]]; then
+    if [ "${_line#DOIT_EXEC:}" != "$_line" ]; then
       _exec_cmd="${_line#DOIT_EXEC:}"
     else
       printf '%s\n' "$_line"
     fi
-  done < <(stdbuf -oL "$_PY" "$_DOIT_BIN" "$@" < /dev/tty 2>&1)
-  _agent_exit=$?
+  done < <($_stdbuf "$_DOIT_PY" "$_DOIT_BIN" "$@" < /dev/tty 2>&1)
+  _agent_status=$?
 
-  # ── Execute the intercepted command in THIS shell ──────────────────────────
   if [ -n "$_exec_cmd" ]; then
     printf '\033[0;36m▶ %s\033[0m\n' "$_exec_cmd"
     eval "$_exec_cmd"
     return $?
   fi
 
-  return $_agent_exit
+  return $_agent_status
 }
