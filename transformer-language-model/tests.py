@@ -65,7 +65,7 @@ def test_init_weights_via_modules():
                     nn.init.zeros_(module.bias)
 
 import os
-def load_best_model_from_dir(models_dir, data_path="../data/en/", device=None):
+def load_best_model_from_dir(models_dir, data_path="data/en/", device=None):
     tokenizer, tokenized_data = load_data(data_path)
 
     if device is None:
@@ -138,14 +138,14 @@ def test_best_model_attn():
 
     model, tokenizer, ckpt, path = load_best_model_from_dir(
         models_dir=models_dir,
-        data_path="../data/en/",
+        data_path="data/en/",
     )
 
     extract_and_plot2(
         model,
         tokenizer,
         prefix_text="For never was a story of more woe than this of Juliet and her Romeo",
-        save_path="../attn_maps/attention_map3.png",
+        save_path="attn_maps/attention_map3.png",
         max_len=32,
     )
 

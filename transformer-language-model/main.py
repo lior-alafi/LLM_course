@@ -15,7 +15,7 @@ if __name__ == "__main__":
     print(f"Using device: {device}")
     seq_len = 128
     batch_size = 64
-    data_path = "../data/en/"
+    data_path = "data/en/"
     n_layers = 6
     n_heads = 6
     embed_size = 192

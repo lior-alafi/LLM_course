@@ -2,7 +2,7 @@
 
 A decoder-only transformer language model implemented from first principles (no `nn.TransformerDecoder` / attention library) — built to understand the architecture, not just call it.
 
-[Assignment spec](https://yoavg.github.io/llm-class-2025-2026/ass1-transformers/) · code in [`code-and-data/code/`](code-and-data/code)
+By Lior Alafi & Tal Somech. [Assignment spec](https://yoavg.github.io/llm-class-2025-2026/ass1-transformers/) · full write-up: [`report.pdf`](report.pdf)
 
 ## What's implemented
 
@@ -22,6 +22,5 @@ A decoder-only transformer language model implemented from first principles (no 
 ## Run
 
 ```bash
-cd code-and-data/code
 uv run main.py
 ```

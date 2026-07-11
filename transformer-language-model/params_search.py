@@ -14,7 +14,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    data_path = "../data/en/"
+    data_path = "data/en/"
     gradient_clipping = 1.0
     num_batches_to_train = 6000
     num_trials = 1
@@ -159,7 +159,7 @@ if __name__ == "__main__":
                             params,
                             best_val_loss,
                             epoch=num_batches,
-                            out_dir="../models/",
+                            out_dir="models/",
                         )
 
                     current_lr = optimizer.param_groups[0]["lr"]
@@ -171,4 +171,4 @@ if __name__ == "__main__":
 
                     model.train()
 
-            loss_plotter(train_losses, val_losses, params, "../figs/")
+            loss_plotter(train_losses, val_losses, params, "figs/")

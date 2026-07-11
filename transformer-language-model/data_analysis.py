@@ -5,8 +5,8 @@ import torch
 from transformer import TransformerLM
 from visualize import extract_and_plot2
 import data
-eng_data = "../data/en/"
-heb_data = "../data/he/"
+eng_data = "data/en/"
+heb_data = "data/he/"
 fp_eng = r"..\final\eng\eng_model\best_model_seq128_bs32_L8_H4_E256_M1024_lr0p0004650772489.pth"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -54,4 +54,4 @@ with torch.no_grad():
 
 
     for text in ['Hello', "where art thou"]:
-        extract_and_plot2(eng_model,tokenizer,text,f'../attn_maps/{text}')
+        extract_and_plot2(eng_model,tokenizer,text,f'attn_maps/{text}')

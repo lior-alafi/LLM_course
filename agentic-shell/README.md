@@ -2,7 +2,7 @@
 
 `doit` turns a natural-language request into a shell command, runs it, and keeps memory and history across invocations — e.g. `doit "list files"`, `doit "move it back"` (resolves "it" from prior turns), `doit "sort them by date"`.
 
-[Assignment spec](https://yoavg.github.io/llm-class-2025-2026/ass3-agentic-shell/) · report: [`acdl/`](acdl) (per-version agent specs, written alongside implementation, per [ACDL](https://acdlang26.github.io/acdlsite/syntax-reference.html))
+[Assignment spec](https://yoavg.github.io/llm-class-2025-2026/ass3-agentic-shell/) · full write-up: [`report.pdf`](report.pdf) · per-version agent specs: [`acdl/`](acdl) ([ACDL](https://acdlang26.github.io/acdlsite/syntax-reference.html))
 
 ## Implementation highlights
 
