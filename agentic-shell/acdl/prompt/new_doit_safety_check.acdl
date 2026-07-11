@@ -1,0 +1,25 @@
+DoitSafetyCheck[@T]: {
+    // Setup {
+        S: {
+            SAFETY_CLASSIFIER_ROLE
+            SAFETY_CLASSIFICATION_POLICY
+            SAFETY_JSON_OUTPUT_SCHEMA
+        }
+    //
+
+    // SafetyInput {
+        U: {
+            env.user_query[@T]
+            resp.command[@T]
+        }
+    //
+
+    // SafetyDecision {
+        A: {
+            resp.safety_level[@T]
+            resp.requires_confirmation[@T]
+            resp.allowed[@T]
+            resp.explanation[@T]
+        }
+    //
+}

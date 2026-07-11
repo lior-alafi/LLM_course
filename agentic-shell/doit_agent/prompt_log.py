@@ -37,7 +37,14 @@ def _safe_log_dir_name(acdl_spec:str)->str:
     name=re.sub(r'[^A-Za-z0-9_.-]+','_',acdl_spec.strip())
     return name.strip('._') or 'unknown'
 def _load_acdl_text(acdl_spec:str)->str|None:
-    mapping={'DoitAgentStateful':'acdl/doit_agent_stateful.acdl','DoitMemoryExtraction':'acdl/doit_memory_extraction.acdl','DoitSafetyCheck':'acdl/v2_safety.acdl','DoitClarification':'acdl/v5_clarifications.acdl','DoitContextSummary':'acdl/v9_extension_context_summary.acdl'}
+    mapping = {
+        "DoitAgentStateful": "acdl/prompt/new_doit_agent_stateful.acdl",
+        "DoitMemoryExtraction": "acdl/prompt/new_doit_memory_extraction.acdl",
+        "DoitSafetyCheck": "acdl/prompt/new_doit_safety_check.acdl",
+        "DoitClarification": "acdl/prompt/new_doit_clarification.acdl",
+        "DoitContextSummary": "acdl/prompt/new_doit_context_summary.acdl",
+    }
+    
     rel=mapping.get(acdl_spec)
     if not rel: return None
     for path in [Path.cwd()/rel, Path(__file__).resolve().parent.parent/rel]:

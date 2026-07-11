@@ -1,0 +1,82 @@
+DoitScenarioModifyingCommandConfirmed[@T]: {
+    // Invocation {
+        U: {
+            env.user_query[@T]
+            env.cwd[@T]
+            env.session_id[@T]
+            env.secure[@T]
+        }
+    //
+
+    // MainAgentLLMCall {
+        S: {
+            DOIT_AGENT_ROLE
+            COMMAND_TRANSLATION_POLICY
+            SINGLE_COMMAND_POLICY
+            JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            sys.same_session_recent_history[@T]
+            sys.user_memories[@T]
+            env.user_query[@T]
+        }
+
+        A: {
+            resp.intent[@T]
+            resp.command[@T]
+            resp.explanation[@T]
+        }
+    //
+
+    // RuntimeValidation {
+        T: {
+            sys.json_parser.success[@T]
+            sys.single_command_policy.allowed[@T]
+            sys.single_command_policy.reason[@T]
+        }
+    //
+
+    // SafetyClassification {
+        T: {
+            sys.safety.rule_based_level[@T]
+            sys.safety.llm_fallback_used[@T]
+            sys.safety.requires_confirmation[@T]
+            sys.safety.allowed_before_confirmation[@T]
+            sys.safety.explanation[@T]
+        }
+    //
+
+    // UserConfirmation {
+        A: {
+            sys.confirmation_prompt[@T]
+            sys.proposed_command[@T]
+            sys.safety.explanation[@T]
+        }
+
+        U: {
+            env.user_confirmation[@T]
+        }
+
+        T: {
+            sys.confirmation.accepted[@T]
+        }
+    //
+
+    // ShellExecution {
+        T: {
+            sys.executed_command[@T]
+            sys.stdout[@T]
+            sys.stderr[@T]
+            sys.returncode[@T]
+        }
+    //
+
+    // PostRunPersistence {
+        T: {
+            sys.state_store.append_interaction[@T]
+            sys.command_output.saved[@T]
+            sys.prompt_logger.saved[@T]
+        }
+    //
+}

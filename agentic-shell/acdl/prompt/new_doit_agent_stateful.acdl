@@ -1,0 +1,88 @@
+DoitAgentStateful[@T]: {
+    // Setup {
+        S: {
+            DOIT_AGENT_ROLE
+            COMMAND_TRANSLATION_POLICY
+            SINGLE_COMMAND_POLICY
+            HISTORY_REFERENCE_POLICY
+            SESSION_REFERENCE_POLICY
+            USER_SHELL_AWARENESS_POLICY
+            MEMORY_USAGE_POLICY
+            JSON_OUTPUT_SCHEMA
+            env.secure[@T]
+        }
+    //
+
+    // CurrentEnvironment {
+        U: {
+            env.cwd[@T]
+            env.session_id[@T]
+            env.secure[@T]
+        }
+    //
+
+    // StoredMemories {
+        U: {
+            ForEach(m: sys.user_memories) {
+                sys.memory.key[m]
+                sys.memory.value[m]
+                sys.memory.updated_at[m]
+            }
+        }
+    //
+
+    // SessionSummary {
+        U: {
+            sys.compacted_session_summary[@T]
+        }
+    //
+
+    // SameSessionHistory {
+        U: {
+            ForEach(t: sys.same_session_recent_turns) {
+                env.user_query[t]
+                resp.intent[t]
+                resp.command[t]
+                resp.answer[t]
+                resp.stdout[t]
+                resp.stderr[t]
+                resp.returncode[t]
+            }
+        }
+    //
+
+    // OtherTerminalSessions {
+        U: {
+            ForEach(s: sys.other_sessions) {
+                sys.session_id[s]
+                sys.session_recent_history[s]
+            }
+        }
+    //
+
+    // RecentExternalShellCommands {
+        U: {
+            ForEach(c: sys.recent_external_shell_commands) {
+                sys.shell_command[c]
+            }
+        }
+    //
+
+    // CurrentTurn {
+        U: {
+            env.user_query[@T]
+        }
+    //
+
+    // AgentDecision {
+        A: {
+            resp.intent[@T]
+            resp.command[@T]
+            resp.answer[@T]
+            resp.error[@T]
+            resp.clarification_question[@T]
+            resp.clarification_options[@T]
+            resp.explanation[@T]
+        }
+    //
+}

@@ -1,0 +1,36 @@
+DoitMemoryExtraction[@T]: {
+    // Setup {
+        S: {
+            MEMORY_EXTRACTOR_ROLE
+            MEMORY_STORAGE_POLICY
+            MEMORY_DELETION_POLICY
+            MEMORY_JSON_OUTPUT_SCHEMA
+        }
+    //
+
+    // ExistingMemories {
+        U: {
+            ForEach(m: sys.user_memories) {
+                sys.memory.key[m]
+                sys.memory.value[m]
+                sys.memory.updated_at[m]
+            }
+        }
+    //
+
+    // CurrentContext {
+        U: {
+            env.cwd[@T]
+            env.user_query[@T]
+            resp.intent[@T]
+            resp.command[@T]
+            resp.answer[@T]
+        }
+    //
+
+    // MemoryExtractionResult {
+        A: {
+            resp.memories[@T]
+        }
+    //
+}

@@ -1,0 +1,112 @@
+DoitScenarioSimpleReadOnlyCommand[@T]: {
+    // Invocation {
+        U: {
+            env.user_query[@T]
+            env.cwd[@T]
+            env.session_id[@T]
+            env.secure[@T]
+            env.model_name[@T]
+        }
+    //
+
+    // RuntimeContextLoad {
+        T: {
+            sys.config.loaded[@T]
+            sys.state.same_session_history_loaded[@T]
+            sys.state.other_sessions_loaded[@T]
+            sys.memory.loaded[@T]
+            sys.shell_history.loaded[@T]
+            sys.context_summary.loaded[@T]
+        }
+    //
+
+    // MainAgentLLMCall {
+        S: {
+            DOIT_AGENT_ROLE
+            COMMAND_TRANSLATION_POLICY
+            SINGLE_COMMAND_POLICY
+            HISTORY_REFERENCE_POLICY
+            SESSION_REFERENCE_POLICY
+            USER_SHELL_AWARENESS_POLICY
+            MEMORY_USAGE_POLICY
+            JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            env.cwd[@T]
+            env.session_id[@T]
+            env.secure[@T]
+            sys.user_memories[@T]
+            sys.compacted_session_summary[@T]
+            sys.same_session_recent_history[@T]
+            sys.other_sessions[@T]
+            sys.recent_external_shell_commands[@T]
+            env.user_query[@T]
+        }
+
+        A: {
+            resp.intent[@T]
+            resp.command[@T]
+            resp.answer[@T]
+            resp.error[@T]
+            resp.explanation[@T]
+        }
+    //
+
+    // JSONParsingAndValidation {
+        T: {
+            sys.json_parser.success[@T]
+            sys.agent_decision.valid[@T]
+            sys.single_command_policy.allowed[@T]
+            sys.single_command_policy.reason[@T]
+        }
+    //
+
+    // SafetyRuntime {
+        T: {
+            sys.safety.enabled[@T]
+            sys.safety.rule_based_level[@T]
+            sys.safety.llm_fallback_used[@T]
+            sys.safety.requires_confirmation[@T]
+            sys.safety.allowed[@T]
+            sys.safety.explanation[@T]
+        }
+    //
+
+    // ShellExecution {
+        T: {
+            sys.executed_command[@T]
+            sys.stdout[@T]
+            sys.stderr[@T]
+            sys.returncode[@T]
+        }
+    //
+
+    // MemoryExtractionLLMCall {
+        S: {
+            MEMORY_EXTRACTOR_ROLE
+            MEMORY_JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            sys.user_memories[@T]
+            env.user_query[@T]
+            resp.command[@T]
+            resp.answer[@T]
+        }
+
+        A: {
+            resp.memories[@T]
+        }
+    //
+
+    // StateAndLogsUpdate {
+        T: {
+            sys.state_store.append_interaction[@T]
+            sys.prompt_logger.saved_agent_call[@T]
+            sys.prompt_logger.saved_memory_call[@T]
+            sys.memory_store.update_result[@T]
+            sys.context_summary.update_checked[@T]
+        }
+    //
+}

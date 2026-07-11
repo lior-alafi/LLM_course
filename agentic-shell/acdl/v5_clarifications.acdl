@@ -1,7 +1,0 @@
-DoitClarifications[@T]: {
-    Planning { S: { DOIT_AGENT_ROLE CLARIFICATION_POLICY JSON_OUTPUT_SCHEMA } U: env.user_query[@T] }
-    If resp.intent[@T] == "clarification" {
-        ClarificationQuestion { A: { resp.clarification_question[@T] resp.clarification_options[@T] } U: env.user_clarification_answer[@T] }
-        FinalPlanning { S: { USE_CLARIFICATION_TO_PRODUCE_FINAL_DECISION } U: { env.user_query[@T] resp.clarification_question[@T] env.user_clarification_answer[@T] } }
-    }
-}

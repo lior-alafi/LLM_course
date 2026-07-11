@@ -11,3 +11,8 @@ doit.cfg
 .claude/
 __pycache__/
 *.pyc
+.idea/
+logs/
+charts/
+*.zip
+*.7z

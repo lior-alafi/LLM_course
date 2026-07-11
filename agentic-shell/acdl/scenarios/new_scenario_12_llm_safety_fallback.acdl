@@ -1,0 +1,77 @@
+DoitScenarioLLMSafetyFallback[@T]: {
+    // Invocation {
+        U: {
+            env.user_query[@T]
+            env.cwd[@T]
+            env.session_id[@T]
+            env.secure[@T]
+        }
+    //
+
+    // MainAgentLLMCall {
+        S: {
+            DOIT_AGENT_ROLE
+            COMMAND_TRANSLATION_POLICY
+            JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            env.user_query[@T]
+        }
+
+        A: {
+            resp.intent[@T]
+            resp.command[@T]
+            resp.explanation[@T]
+        }
+    //
+
+    // RuleBasedSafetyCannotDecide {
+        T: {
+            sys.safety.rule_based_level[@T]
+            sys.safety.rule_based_reason[@T]
+            sys.safety.llm_fallback_needed[@T]
+        }
+    //
+
+    // SafetyFallbackLLMCall {
+        S: {
+            SAFETY_CLASSIFIER_ROLE
+            SAFETY_CLASSIFICATION_POLICY
+            SAFETY_JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            env.user_query[@T]
+            resp.command[@T]
+        }
+
+        A: {
+            resp.safety_level[@T]
+            resp.requires_confirmation[@T]
+            resp.allowed[@T]
+            resp.explanation[@T]
+        }
+    //
+
+    // RuntimeAfterSafety {
+        T: {
+            sys.safety.llm_fallback_used[@T]
+            sys.safety.final_level[@T]
+            sys.safety.final_allowed[@T]
+            sys.safety.requires_confirmation[@T]
+            sys.execution.performed_or_skipped[@T]
+            sys.stdout[@T]
+            sys.stderr[@T]
+            sys.returncode[@T]
+        }
+    //
+
+    // Persistence {
+        T: {
+            sys.state_store.append_interaction[@T]
+            sys.prompt_logger.saved_agent_call[@T]
+            sys.prompt_logger.saved_safety_call[@T]
+        }
+    //
+}
