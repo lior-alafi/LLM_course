@@ -1,9 +1,9 @@
 # LLM Course
 
-Exercises for the LLM course (Bar-Ilan, 2025/2026).
+Three projects from the LLM course (Bar-Ilan, 2025/2026), each built from a public assignment spec by [Yoav Goldberg](https://yoavg.github.io/llm-class-2025-2026/).
 
-- [`ex1/`](ex1) — transformer language model from scratch (attention, MLP, training loop) on English/Hebrew corpora.
-- [`ex2/`](ex2) — LoRA fine-tuning, tokenizer analysis, and constrained decoding for Hebrew/English generation. See [`ex2/Report.pdf`](ex2/Report.pdf).
-- [`ex3/`](ex3) — `doit`, an LLM-powered shell agent (natural language → shell command) with memory, safety checks, and multi-model support. See [`ex3/report.md`](ex3/report.md).
+- **[`transformer-language-model/`](transformer-language-model)** — a decoder-only transformer language model built from scratch (attention, multi-head attention, causal masking, residual/norm blocks) at the character level, trained on English (Shakespeare) and Hebrew (Bialik/Rachel poetry) corpora, with attention-pattern analysis. [Assignment spec](https://yoavg.github.io/llm-class-2025-2026/ass1-transformers/).
+- **[`architecture-tokenizers-finetuning/`](architecture-tokenizers-finetuning)** — comparative analysis of 10 open LLMs' architectures and tokenizers, constrained decoding to force Hebrew-only output from an English prompt, and LoRA fine-tuning of Qwen2.5-1.5B to answer English questions in Hebrew. Report: [`Report.pdf`](architecture-tokenizers-finetuning/Report.pdf). [Assignment spec](https://yoavg.github.io/llm-class-2025-2026/ass2-architectural-choices-tokenizers-finetuning/).
+- **[`agentic-shell/`](agentic-shell)** — `doit`, an LLM-powered shell agent that turns natural language into shell commands: destructive-action confirmation, multi-model support (API + local, tool-calling + non-tool-calling) via LiteLLM, persistent cross-session memory, shell-history awareness, and multi-terminal session handling. [Assignment spec](https://yoavg.github.io/llm-class-2025-2026/ass3-agentic-shell/).
 
-Each exercise is a standalone `uv` project — see its own README/`pyproject.toml` for setup and run instructions.
+Each project is a standalone `uv` project — see its own README for setup and run instructions.
