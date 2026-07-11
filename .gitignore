@@ -4,6 +4,14 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Secrets
+.env
+
+# Editor / IDE
+.idea/
+.vscode/
+.claude/
+
 # Data
 data/
 
