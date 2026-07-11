@@ -2,7 +2,6 @@ import os
 os.environ["PYTHONUTF8"] = "1"
 from datasets import load_dataset
 import torch
-from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import LoraConfig
 from trl import SFTTrainer, SFTConfig
@@ -48,38 +47,6 @@ model.config.use_cache = False
 # -------------------------
 # 4. LoRA config
 # -------------------------
-# peft_config = LoraConfig(         # AGGRESSIVE!!!
-#     r=16,
-#     lora_alpha=32,
-#     lora_dropout=0.05,
-#     bias="none",
-#     task_type="CAUSAL_LM",
-#
-#     # Good target modules for Qwen/Llama-style transformer blocks
-#     target_modules=[
-#         "q_proj",
-#         "k_proj",
-#         "v_proj",
-#         "o_proj",
-#         "gate_proj",
-#         "up_proj",
-#         "down_proj",
-#     ],
-# )
-
-# peft_config = LoraConfig(
-#     r=4,
-#     lora_alpha=8,
-#     lora_dropout=0.1,
-#     bias="none",
-#     task_type="CAUSAL_LM",
-#     target_modules=[
-#         "q_proj",
-#         "v_proj",
-#     ],
-# )
-
-#APPLES TO APPLES
 peft_config = LoraConfig(
     r=16,
     lora_alpha=32,
@@ -99,58 +66,6 @@ peft_config = LoraConfig(
 # -------------------------
 # 5. Training config
 # -------------------------
-# training_args = SFTConfig(
-#     output_dir=OUTPUT_DIR,
-#
-#     num_train_epochs=3,
-#     per_device_train_batch_size=2,
-#     gradient_accumulation_steps=8,
-#
-#     learning_rate=2e-4,
-#     warmup_ratio=0.03,
-#     lr_scheduler_type="cosine",
-#
-#     logging_steps=10,
-#     save_steps=200,
-#     save_total_limit=2,
-#
-#     max_length=1024,
-#     packing=False,
-#
-#     bf16=torch.cuda.is_available(),
-#     fp16=False,
-#
-#     optim="adamw_torch",
-#     report_to="none",
-# )
-
-# training_args = SFTConfig(
-#     output_dir=OUTPUT_DIR,
-#
-#     num_train_epochs=1,
-#     per_device_train_batch_size=1,
-#     gradient_accumulation_steps=8,
-#
-#     learning_rate=5e-5,
-#     warmup_ratio=0.1,
-#     lr_scheduler_type="cosine",
-#
-#     logging_steps=1,
-#     save_steps=50,
-#     save_total_limit=2,
-#
-#     max_length=512,
-#     packing=False,
-#
-#     bf16=torch.cuda.is_available(),
-#     fp16=False,
-#
-#     optim="adamw_torch",
-#     report_to="none",
-#
-#     assistant_only_loss=True,
-# )
-
 training_args = SFTConfig(
     output_dir=OUTPUT_DIR,
 

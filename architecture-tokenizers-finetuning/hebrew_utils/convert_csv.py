@@ -1,9 +1,11 @@
 import json
+import os
 import pandas as pd
 
 # טעינת קובץ ה-CSV
-csv_filename = "../constrained_questions.csv"
-output_filename = "../decoding_outputs.jsonl"
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+csv_filename = os.path.join(_project_root, "constrained_questions.csv")
+output_filename = os.path.join(_project_root, "decoding_outputs.jsonl")
 
 df = pd.read_csv(csv_filename)
 

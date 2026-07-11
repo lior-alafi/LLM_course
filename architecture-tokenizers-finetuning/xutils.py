@@ -13,6 +13,8 @@ from transformers import (
 class AllowOnlyTokensLogitsProcessor(LogitsProcessor):
     def __init__(self, allowed_token_ids: Set[int]):
         self.allowed_token_ids = set(int(t) for t in allowed_token_ids)
+        self._mask_cache_key = None
+        self._mask = None
 
     def __call__(
         self,
@@ -21,25 +23,30 @@ class AllowOnlyTokensLogitsProcessor(LogitsProcessor):
     ) -> torch.FloatTensor:
         vocab_size = scores.shape[-1]
         device = scores.device
+        cache_key = (vocab_size, device, scores.dtype)
 
-        allowed = [
-            token_id
-            for token_id in self.allowed_token_ids
-            if 0 <= token_id < vocab_size
-        ]
+        if cache_key != self._mask_cache_key:
+            allowed = [
+                token_id
+                for token_id in self.allowed_token_ids
+                if 0 <= token_id < vocab_size
+            ]
 
-        if not allowed:
-            raise ValueError("No valid allowed token ids for this model vocabulary.")
+            if not allowed:
+                raise ValueError("No valid allowed token ids for this model vocabulary.")
 
-        mask = torch.full(
-            (vocab_size,),
-            -float("inf"),
-            device=device,
-            dtype=scores.dtype,
-        )
+            mask = torch.full(
+                (vocab_size,),
+                -float("inf"),
+                device=device,
+                dtype=scores.dtype,
+            )
+            mask[torch.tensor(allowed, device=device, dtype=torch.long)] = 0.0
 
-        mask[torch.tensor(allowed, device=device, dtype=torch.long)] = 0.0
-        return scores + mask
+            self._mask = mask
+            self._mask_cache_key = cache_key
+
+        return scores + self._mask
 
 
 class HFChatGenerator:

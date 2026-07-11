@@ -129,16 +129,20 @@ def preprocess(example):
     }
 
 
-tokenized_dataset = dataset.map(
+tokenized_train_dataset = train_dataset.map(
     preprocess,
-    remove_columns=dataset.column_names,
+    remove_columns=train_dataset.column_names,
+)
+tokenized_eval_dataset = eval_dataset.map(
+    preprocess,
+    remove_columns=eval_dataset.column_names,
 )
 
 print("\nTokenized example:")
-print(tokenized_dataset[0])
+print(tokenized_train_dataset[0])
 
 # Debug: decode input and labels
-ex0 = tokenized_dataset[0]
+ex0 = tokenized_train_dataset[0]
 print("\nDecoded full input:")
 print(tokenizer.decode(ex0["input_ids"]))
 
@@ -272,6 +276,7 @@ learning_rate=1e-4,
 lr_scheduler_type="cosine",
 warmup_ratio=0.05,
 weight_decay=0.01,
+eval_strategy="epoch",
 )
 
 
@@ -281,11 +286,14 @@ weight_decay=0.01,
 trainer = Trainer(
     model=model,
     args=training_args,
-    train_dataset=tokenized_dataset,
+    train_dataset=tokenized_train_dataset,
+    eval_dataset=tokenized_eval_dataset,
     data_collator=data_collator,
 )
 
 trainer.train()
+print("\nFinal evaluation:")
+print(trainer.evaluate())
 
 
 # -------------------------------------------------------

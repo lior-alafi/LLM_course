@@ -4,7 +4,7 @@ import json
 
 import torch
 
-from ex2.xutils import HFChatGenerator
+from xutils import HFChatGenerator
 
 msg = "explain briefly what is supervised learning"
 messages = [

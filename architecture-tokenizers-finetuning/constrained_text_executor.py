@@ -1,11 +1,7 @@
-from ex2.xutils import HFChatGenerator
+from xutils import HFChatGenerator
 import gc
 
 msg = "explain briefly what is supervised learning"
-messages = [
-    # {"role": "system", "content": "ענה רק בעברית."},
-    {"role": "user", "content": msg},
-]
 
 
 model_inf = [{'id': 'mistralai/Mistral-7B-Instruct-v0.3','allowed_token_path': 'hebrew_allowed_tokens_mistral.json','prefix':"ענה בעברית"+"\n\n"},
@@ -15,6 +11,13 @@ for m in model_inf:
                                  allowed_token_json_path=m['allowed_token_path'] )
 
     generator.print_device_info()
+
+    # Apply this model's Hebrew-only instruction to BOTH generations, so the
+    # constrained-vs-unconstrained comparison is actually about the token
+    # masking (not about one of them never being asked to answer in Hebrew).
+    messages = [
+        {"role": "user", "content": m['prefix'] + msg},
+    ]
 
     constrained_answer = generator.generate_constrained(
         messages,

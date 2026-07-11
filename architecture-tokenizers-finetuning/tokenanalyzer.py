@@ -8,10 +8,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 login(os.getenv("HF_TOKEN"))
-from transformers import AutoTokenizer
-import statistics
-import json
-import csv
 
 models = [
     "meta-llama/Llama-3.1-8B-Instruct",

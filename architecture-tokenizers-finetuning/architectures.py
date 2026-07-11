@@ -4,10 +4,11 @@ from accelerate import init_empty_weights
 
 import json
 import csv
-import data.at as at
+import os
+from dotenv import load_dotenv
 
-
-login(at.AT)
+load_dotenv()
+login(os.getenv("HF_TOKEN"))
 
 
 models = [
