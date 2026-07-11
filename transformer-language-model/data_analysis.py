@@ -3,11 +3,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from transformer import TransformerLM
-from visualize import extract_and_plot2
+from visualize import extract_and_plot
 import data
 eng_data = "data/en/"
 heb_data = "data/he/"
-fp_eng = r"..\final\eng\eng_model\best_model_seq128_bs32_L8_H4_E256_M1024_lr0p0004650772489.pth"
+# Path to a checkpoint produced by params_search.py (out_dir="models/"); the
+# exp_name suffix depends on which hyperparameter combination you trained.
+fp_eng = "models/best_model_seq128_bs32_L8_H4_E256_M1024_lr0p0004650772489.pth"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -25,7 +27,7 @@ def load_model(data_path, checkpoint_path):
         vocab_size=tokenizer.vocab_size(),
         mlp_hidden_size=params["mlp_hidden_size"],
         with_residuals=True,
-        dropout=[params['dropout_rate'],params['dropout_rate'],params['dropout_rate']],
+        dropout=params['dropout'],
     )
 
     model.load_state_dict(ckpt["model_state_dict"])
@@ -33,25 +35,26 @@ def load_model(data_path, checkpoint_path):
     model.eval()
     return model,params,ckpt["best"],tokenizer
 
-eng_model,eng_params,eng_best,tokenizer = load_model(eng_data,fp_eng)
-print(eng_params)
-print(eng_best)
-with torch.no_grad():
-    for text in ["where art thou"]:
-        print(f'prefix: {text}')
-        text = tokenizer.tokenize(text)
-        simple = tokenizer.detokenize(eng_model.sample_continuation(text, 256))
-        print(f'generated:\n{simple}')
-        print('#' * 10)
-        for temperature in np.arange(0.1,1.0,0.2):
-            print(f'temperature{temperature:.2f}')
-            complex=tokenizer.detokenize(eng_model.better_sample_continuation(text, 256,temperature,5))
+if __name__ == "__main__":
+    eng_model,eng_params,eng_best,tokenizer = load_model(eng_data,fp_eng)
+    print(eng_params)
+    print(eng_best)
+    with torch.no_grad():
+        for text in ["where art thou"]:
+            print(f'prefix: {text}')
+            text = tokenizer.tokenize(text)
+            simple = tokenizer.detokenize(eng_model.sample_continuation(text, 256))
+            print(f'generated:\n{simple}')
+            print('#' * 10)
+            for temperature in np.arange(0.1,1.0,0.2):
+                print(f'temperature{temperature:.2f}')
+                complex=tokenizer.detokenize(eng_model.better_sample_continuation(text, 256,temperature,5))
 
-            print(f'generated:\n{complex}')
-            print('*' * 10)
+                print(f'generated:\n{complex}')
+                print('*' * 10)
 
-    print('-'*50)
+        print('-'*50)
 
 
-    for text in ['Hello', "where art thou"]:
-        extract_and_plot2(eng_model,tokenizer,text,f'attn_maps/{text}')
+        for text in ['Hello', "where art thou"]:
+            extract_and_plot(eng_model,tokenizer,text,f'attn_maps/{text}')

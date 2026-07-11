@@ -35,10 +35,10 @@ if __name__ == "__main__":
         num_batches = 0
         params = parameters(
         seq_len=128,
-        batch_size = 32 , # או 32 אם צריך זיכרון
+        batch_size = 32,
         n_layers = 4,
         n_heads = 4,
-        embed_size = 132 , # או 144/156 אם אתה רוצה מספר יותר נוח
+        embed_size = 132,
         mlp_hidden_size = lambda d: d * 4,
         learning_rate = 5e-4,
         dropout = [0.2, 0.2, 0.2],

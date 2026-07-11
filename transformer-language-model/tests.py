@@ -4,7 +4,7 @@ import torch.nn as nn
 from transformer import TransformerLM
 from data import load_data
 from utils import load_best_model
-from visualize import extract_and_plot2
+from visualize import extract_and_plot
 
 
 def test_attention_scores():
@@ -24,25 +24,23 @@ def test_attention_scores():
     assert torch.allclose(A, expected_output)
 
 def test_init_weights_via_parameters():
+     # Note: iterates named_modules() (not named_parameters()) since the
+     # isinstance checks below are against module types (nn.LayerNorm etc.),
+     # which named_parameters() never yields (it yields raw Tensors) -- that
+     # made this test a silent no-op.
      tmp = TransformerLM(4,4,4,4,4,4,True)
-     for pn, p in tmp.named_parameters():
-            print(f'{pn} {p}')
-            if isinstance(p, nn.LayerNorm):
-                torch.nn.init.ones_(p.weight)
-                torch.nn.init.zeros_(p.bias)
-                assert torch.ones_like(p.weight) - p.weight == torch.zeros_like(p.weight)
-            elif isinstance(p, nn.Linear):
+     for name, module in tmp.named_modules():
+            if isinstance(module, nn.LayerNorm):
+                torch.nn.init.ones_(module.weight)
+                torch.nn.init.zeros_(module.bias)
+                assert torch.equal(module.weight, torch.ones_like(module.weight))
+            elif isinstance(module, nn.Linear):
                 # You can look at initializers in torch.nn.init
-                
-                torch.nn.init.xavier_normal_(p.weight) #https://apxml.com/courses/pytorch-for-tensorflow-developers/chapter-2-pytorch-nn-module-for-keras-users/weight-initialization-pytorch
-                torch.nn.init.zeros_(p.bias)
-                print("2")
-            elif isinstance(p, nn.Embedding):
+                torch.nn.init.xavier_normal_(module.weight) #https://apxml.com/courses/pytorch-for-tensorflow-developers/chapter-2-pytorch-nn-module-for-keras-users/weight-initialization-pytorch
+                torch.nn.init.zeros_(module.bias)
+            elif isinstance(module, nn.Embedding):
                 # You can look at initializers in torch.nn.init
-                torch.nn.init.normal_(p.weight, mean=0, std=0.02) #An Exploration of Word Embedding Initialization in Deep-Learning Tasks
-                if p.bias is not None:
-                    torch.nn.init.zeros_(p.bias)
-                print("3")
+                torch.nn.init.normal_(module.weight, mean=0, std=0.02) #An Exploration of Word Embedding Initialization in Deep-Learning Tasks
 
 def test_init_weights_via_modules():
         tmp = TransformerLM(4,4,4,4,4,4,True)
@@ -141,7 +139,7 @@ def test_best_model_attn():
         data_path="data/en/",
     )
 
-    extract_and_plot2(
+    extract_and_plot(
         model,
         tokenizer,
         prefix_text="For never was a story of more woe than this of Juliet and her Romeo",

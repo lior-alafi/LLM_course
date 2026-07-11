@@ -30,7 +30,11 @@ class TransformerDecoderBlock(nn.Module):
                 x=x+self.dropout_layer(sa)
             else:
                 x=x+sa
-            x=x+self.mlp(self.layer_norm_2(x))
+            mlp_out = self.mlp(self.layer_norm_2(x))
+            if self.dropout_layer is not None:
+                x=x+self.dropout_layer(mlp_out)
+            else:
+                x=x+mlp_out
         else:
             x = inputs
             x = self.layer_norm_1(x)
@@ -77,7 +81,7 @@ class TransformerLM(nn.Module):
             vocab_size: int,
             mlp_hidden_size: int,
             with_residuals: bool,
-            dropout=[None,None,None],
+            dropout=(None, None, None),
             ):
         super().__init__()
         self.embed = Embed(vocab_size, embed_size, max_context_len)

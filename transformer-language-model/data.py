@@ -98,7 +98,6 @@ def load_data(path: str) -> [CharTokenizer, list[list[int]]]:
 def batch_items(data_iter: Iterator[list[int]], batch_size: int = 2) -> Iterator[torch.LongTensor]:
     batch = []
     for seq in data_iter:
-        idx = 0
         batch.append(seq)
         if len(batch) >= batch_size:
             yield torch.tensor(batch, dtype=torch.long)

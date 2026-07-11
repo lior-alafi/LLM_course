@@ -21,7 +21,7 @@ def plot_attention_maps(
         n_heads,
         figsize=(3 * n_heads, 3 * n_layers),
         squeeze=False,
-        constrained_layout=True,   # ✅ במקום tight_layout
+        constrained_layout=True,
     )
 
     fig.suptitle("Attention Maps (layer × head)", fontsize=14)
@@ -47,11 +47,7 @@ def plot_attention_maps(
             ax.set_xticklabels(labels, fontsize=5, rotation=90)
             ax.set_yticklabels(labels, fontsize=5)
 
-    # colorbar אחד לכל הגריד
     fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.6, label="Attention weight")
-
-    # ❌ לא להשתמש יותר בזה
-    # plt.tight_layout()
 
     if save_path:
         plt.savefig(save_path, bbox_inches="tight", dpi=150)
@@ -72,40 +68,14 @@ def extract_and_plot(model, tokenizer, prefix_text: str, save_path: str = None, 
         token_ids = token_ids[-model.max_context_len:]
         input_tensor = torch.tensor([token_ids], dtype=torch.long,
                                     device=next(model.parameters()).device)
- 
-        _logits, attn_maps = model(input_tensor, return_attn_maps=True)
- 
-    # Decode each token id back to a readable string for the axis labels
-    token_strings = [repr(tokenizer.vocab[t])[1:-1] for t in token_ids]
- 
-    plot_attention_maps(attn_maps, token_strings, sample_idx=0,
-                        max_len=max_len, save_path=save_path)
-    model.train()
-
-
-def extract_and_plot2(model, tokenizer, prefix_text: str, save_path: str = None, max_len: int = 32):
-    model.eval()
-
-    with torch.no_grad():
-        token_ids = tokenizer.tokenize(prefix_text)
-        token_ids = token_ids[-model.max_context_len:]
-
-        input_tensor = torch.tensor(
-            [token_ids],
-            dtype=torch.long,
-            device=next(model.parameters()).device
-        )
 
         logits, attn_maps = model(input_tensor, return_attn_maps=True)
 
+    # Decode each token id back to a readable string for the axis labels
     token_strings = [repr(tokenizer.vocab[t])[1:-1] for t in token_ids]
 
-    plot_attention_maps(
-        attn_maps,
-        token_strings,
-        sample_idx=0,
-        max_len=max_len,
-        save_path=save_path
-    )
+    plot_attention_maps(attn_maps, token_strings, sample_idx=0,
+                        max_len=max_len, save_path=save_path)
+    model.train()
 
     return logits, attn_maps, token_ids, token_strings

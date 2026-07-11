@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     optimizer = optim.AdamW(model.parameters(), lr=learning_rate, betas=[0.9, 0.95], weight_decay=1e-2)
     num_batches = 0
-    while True:
+    while num_batches < num_batches_to_train:
         for batch in data.batch_items(data_iter, batch_size):
             if num_batches >= num_batches_to_train:
                 break
