@@ -59,6 +59,7 @@ class FileStateStore(StateStore):
         self,
         *,
         limit: int = 5,
+        max_sessions: int = 5,
     ) -> dict[str, list[InteractionRecord]]:
         with self.lock_path.open("r+") as lock_file:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_SH)
@@ -72,6 +73,11 @@ class FileStateStore(StateStore):
 
         for record in reversed(records):
             if record.session_id not in sessions:
+                # Every distinct session_id ever seen would otherwise
+                # accumulate here forever (bloating every future prompt) --
+                # cap how many distinct (most-recent) sessions we track.
+                if len(sessions) >= max_sessions:
+                    continue
                 sessions[record.session_id] = []
 
             if len(sessions[record.session_id]) < limit:

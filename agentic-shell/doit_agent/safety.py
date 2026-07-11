@@ -31,6 +31,10 @@ class RuleBasedSafetyClassifier:
         r"\bchown\s+-R\b",
         r"\bcurl\b.*\|\s*(bash|sh|zsh)",
         r"\bwget\b.*\|\s*(bash|sh|zsh)",
+        # `find` is in READ_ONLY_PREFIXES, but its -delete/-exec/... actions
+        # are not read-only -- catch those explicitly so they don't fall
+        # through to the read-only classification below.
+        r"\bfind\b.*-(delete|exec|execdir|ok|okdir|fprintf|fprint0?|fls)\b",
     ]
 
     MODIFYING_PATTERNS = [
@@ -108,7 +112,13 @@ class RuleBasedSafetyClassifier:
                     source="rule_based",
                 )
 
-        if normalized.startswith(self.READ_ONLY_PREFIXES):
+        # Token-boundary match, not a raw string prefix: `str.startswith(tuple)`
+        # would also match e.g. "findall_and_wipe" against "find".
+        tokens = normalized.split()
+        if any(
+            tokens[: len(prefix_tokens := prefix.split())] == prefix_tokens
+            for prefix in self.READ_ONLY_PREFIXES
+        ):
             return SafetyDecision(
                 safety_level="read_only",
                 requires_confirmation=False,

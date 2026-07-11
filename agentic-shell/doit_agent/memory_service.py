@@ -24,12 +24,19 @@ class MemoryService:
         self.prompt_logger = prompt_logger
 
     @trace
-    def extract_and_apply(
+    def extract(
         self,
         user_query: str,
         cwd: str | None = None,
         command: str | None = None,
-    ) -> list[str]:
+    ) -> MemoryExtractionResult | None:
+        """
+        Ask the LLM what memory actions this turn implies, WITHOUT writing
+        them yet. Callers that gate execution (policy/safety/confirmation)
+        should only call `apply()` once a turn is actually going through --
+        otherwise a rejected or cancelled command still leaves behind a
+        memory of an action that never happened.
+        """
         existing = self.memory_store.list_memories()
         messages = build_memory_extraction_messages(
             user_query, existing, cwd=cwd, command=command
@@ -48,8 +55,18 @@ class MemoryService:
                     raw_response=raw,
                     parsed_response=result.model_dump(),
                 )
+            return result
         except Exception as e:
             print(f"[memory_service] Failed to extract memories: {e}")
+            return None
+
+    @trace
+    def apply(
+        self,
+        result: MemoryExtractionResult | None,
+        user_query: str,
+    ) -> list[str]:
+        if result is None:
             return []
 
         actions: list[str] = []
@@ -73,3 +90,13 @@ class MemoryService:
                     actions.append(f"delete_missed:{candidate.key}")
 
         return actions
+
+    @trace
+    def extract_and_apply(
+        self,
+        user_query: str,
+        cwd: str | None = None,
+        command: str | None = None,
+    ) -> list[str]:
+        """Convenience wrapper for callers with no execution gate to wait for."""
+        return self.apply(self.extract(user_query, cwd=cwd, command=command), user_query)

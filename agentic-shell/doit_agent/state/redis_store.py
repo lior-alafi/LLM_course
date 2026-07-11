@@ -59,10 +59,14 @@ class RedisStateStore(StateStore):
         self,
         *,
         limit: int = 5,
+        max_sessions: int = 5,
     ) -> dict[str, list[InteractionRecord]]:
         sessions: dict[str, list[InteractionRecord]] = {}
 
-        for session_id in self.redis.smembers("doit:sessions"):
+        # "doit:sessions" would otherwise accumulate every session_id ever
+        # seen, unbounded -- cap how many distinct sessions we pull in.
+        session_ids = list(self.redis.smembers("doit:sessions"))[:max_sessions]
+        for session_id in session_ids:
             rows = self.redis.lrange(f"doit:session:{session_id}:history", -limit, -1)
             sessions[session_id] = [
                 InteractionRecord.from_dict(json.loads(row)) for row in rows

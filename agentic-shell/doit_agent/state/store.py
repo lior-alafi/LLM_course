@@ -32,9 +32,11 @@ class StateStore(ABC):
         self,
         *,
         limit: int = 5,
+        max_sessions: int = 5,
     ) -> dict[str, list[InteractionRecord]]:
         """
-        Return recent interactions grouped by session.
+        Return recent interactions grouped by session: up to `limit` records
+        from each of at most `max_sessions` distinct sessions.
         Useful for multi-terminal awareness.
         """
         raise NotImplementedError

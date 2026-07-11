@@ -376,7 +376,11 @@ class DoitAgent:
         # Memory extraction runs AFTER decide() so the LLM has full context:
         # what the user asked, what command was chosen, and what cwd is.
         # The memory prompt instructs it to store absolute paths from that context.
-        memory_actions = self.memory_service.extract_and_apply(
+        # Extraction only decides WHAT would be remembered -- it is not written
+        # via `apply()` until we know the turn actually goes through (below),
+        # so a command rejected by policy/safety or cancelled by the user
+        # doesn't leave behind a memory of something that never happened.
+        memory_result = self.memory_service.extract(
             query,
             cwd=os.getcwd(),
             command=decision.command,
@@ -386,6 +390,7 @@ class DoitAgent:
             answer = decision.answer or decision.explanation or ""
             print(answer)
 
+            memory_actions = self.memory_service.apply(memory_result, query)
             if memory_actions:
                 print(f"\nMemory actions: {', '.join(memory_actions)}")
 
@@ -489,6 +494,9 @@ class DoitAgent:
                     self._maybe_update_context_summary()
                     return 1
 
+        # All gates passed (policy, safety, confirmation) -- the command is
+        # actually going to run, so it's safe to commit the memory actions now.
+        memory_actions = self.memory_service.apply(memory_result, query)
         if memory_actions:
             print(f"\nMemory actions: {', '.join(memory_actions)}")
 
