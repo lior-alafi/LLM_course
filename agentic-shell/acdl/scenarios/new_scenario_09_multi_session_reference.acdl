@@ -1,0 +1,76 @@
+DoitScenarioMultiSessionReference[@T]: {
+    // SessionOnePriorContext {
+        T: {
+            sys.session_id[@S1]
+            sys.session.cwd[@S1]
+            sys.session_recent_history[@S1]
+        }
+    //
+
+    // SessionTwoPriorContext {
+        T: {
+            sys.session_id[@S2]
+            sys.session.cwd[@S2]
+            sys.session_recent_history[@S2]
+        }
+    //
+
+    // CurrentInvocationInSessionOne {
+        U: {
+            env.user_query[@T]
+            env.cwd[@T]
+            env.session_id[@T]
+        }
+    //
+
+    // ContextSelectionRuntime {
+        T: {
+            sys.state.same_session_history_loaded[@T]
+            sys.state.other_sessions_loaded[@T]
+            sys.reference_resolution.uses_same_session_by_default[@T]
+            sys.reference_resolution.cross_session_allowed_when_explicit[@T]
+        }
+    //
+
+    // MainAgentLLMCall {
+        S: {
+            DOIT_AGENT_ROLE
+            SESSION_REFERENCE_POLICY
+            HISTORY_REFERENCE_POLICY
+            JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            sys.same_session_recent_history[@T]
+            sys.other_sessions[@T]
+            env.cwd[@T]
+            env.session_id[@T]
+            env.user_query[@T]
+        }
+
+        A: {
+            resp.intent[@T]
+            resp.command[@T]
+            resp.answer[@T]
+            resp.explanation[@T]
+        }
+    //
+
+    // RuntimeResult {
+        T: {
+            sys.single_command_policy.allowed[@T]
+            sys.safety.allowed[@T]
+            sys.executed_command[@T]
+            sys.stdout[@T]
+            sys.stderr[@T]
+            sys.returncode[@T]
+        }
+    //
+
+    // Persistence {
+        T: {
+            sys.state_store.append_interaction[@T]
+            sys.prompt_logger.saved_agent_call[@T]
+        }
+    //
+}

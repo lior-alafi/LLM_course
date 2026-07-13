@@ -1,0 +1,54 @@
+DoitScenarioOutputAwarenessFollowup[@T]: {
+    // PreviousTurnAvailable {
+        T: {
+            sys.previous_command[@T]
+            sys.previous_stdout[@T]
+            sys.previous_stderr[@T]
+            sys.previous_returncode[@T]
+        }
+    //
+
+    // Invocation {
+        U: {
+            env.user_query[@T]
+            env.cwd[@T]
+            env.session_id[@T]
+        }
+    //
+
+    // MainAgentLLMCall {
+        S: {
+            DOIT_AGENT_ROLE
+            HISTORY_REFERENCE_POLICY
+            OUTPUT_AWARENESS_POLICY
+            JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            sys.same_session_recent_history[@T]
+            env.user_query[@T]
+        }
+
+        A: {
+            resp.intent[@T]
+            resp.command[@T]
+            resp.answer[@T]
+            resp.error[@T]
+            resp.explanation[@T]
+        }
+    //
+
+    // RuntimeDecision {
+        T: {
+            sys.answer_without_shell_execution[@T]
+            sys.referenced_previous_output[@T]
+        }
+    //
+
+    // Persistence {
+        T: {
+            sys.state_store.append_interaction[@T]
+            sys.prompt_logger.saved_agent_call[@T]
+        }
+    //
+}

@@ -1,0 +1,46 @@
+DoitScenarioNonCommandAnswer[@T]: {
+    // Invocation {
+        U: {
+            env.user_query[@T]
+            env.cwd[@T]
+            env.session_id[@T]
+        }
+    //
+
+    // MainAgentLLMCall {
+        S: {
+            DOIT_AGENT_ROLE
+            RICHER_INTERACTION_POLICY
+            JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            sys.same_session_recent_history[@T]
+            sys.user_memories[@T]
+            env.user_query[@T]
+        }
+
+        A: {
+            resp.intent[@T]
+            resp.command[@T]
+            resp.answer[@T]
+            resp.error[@T]
+            resp.explanation[@T]
+        }
+    //
+
+    // RuntimeDecision {
+        T: {
+            sys.intent_is_answer[@T]
+            sys.shell_execution.skipped[@T]
+            sys.safety.skipped[@T]
+        }
+    //
+
+    // Persistence {
+        T: {
+            sys.state_store.append_interaction[@T]
+            sys.prompt_logger.saved_agent_call[@T]
+        }
+    //
+}

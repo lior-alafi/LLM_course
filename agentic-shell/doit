@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+import argparse
+from doit_agent.config import ConfigLoader
+from doit_agent.llm_factory import LLMFactory
+from doit_agent.agent import DoitAgent
+from doit_agent.state.factory import StateStoreFactory
+from doit_agent.memory.factory import MemoryStoreFactory
+from doit_agent.prompt_log import PromptLogger
+
+def parse_args():
+    parser = argparse.ArgumentParser(prog='doit', description='LLM shell agent')
+    parser.add_argument('-v','--verbose', action='count', default=0,
+                        help='Use -v for short LLM debug, -vv for full ACDL/context/response')
+    parser.add_argument('query', nargs=argparse.REMAINDER)
+    return parser.parse_args()
+
+def main() -> int:
+    # print("parsing args")
+    args = parse_args()
+    if not args.query:
+        print('Usage: doit [-v|-vv] "<your query>"')
+        return 1
+    query=' '.join(args.query).strip()
+    # ConfigLoader defaults to ~/doit.cfg. The installer creates that file.
+    # Keeping runtime config outside the project makes WSL/Linux installs
+    # machine-specific and avoids committing API keys or local host addresses.
+    config=ConfigLoader().load()
+    # print("Loaded config")
+    llm=LLMFactory.create(config.model)
+    # print("Created LLM")
+    agent=DoitAgent(config=config, llm=llm,
+                    state_store=StateStoreFactory.create(config),
+                    memory_store=MemoryStoreFactory.create(config),
+                    prompt_logger=PromptLogger(verbose_level=args.verbose),
+                    verbose_level=args.verbose)
+    # print("Created agent")
+    # print(f"command time_out:{agent.config.agent.command_timeout}")
+    return agent.run(query)
+if __name__=='__main__':
+    raise SystemExit(main())

@@ -1,5 +1,0 @@
-DoitModelSwitching[@T]: {
-    Config { T: { sys.config_loader.read("~/doit.cfg") sys.model.provider sys.model.name sys.model.api_base } }
-    LLMFactory { T: { sys.llm_factory.create(sys.model.provider, sys.model.name) } }
-    CurrentTurn { U: env.user_query[@T] }
-}

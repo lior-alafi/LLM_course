@@ -1,0 +1,35 @@
+DoitClarification[@T]: {
+    // Setup {
+        S: {
+            DOIT_AGENT_ROLE
+            CLARIFICATION_RESOLUTION_POLICY
+            JSON_OUTPUT_SCHEMA
+        }
+    //
+
+    // OriginalRequest {
+        U: {
+            env.user_query[@T]
+        }
+    //
+
+    // ClarificationContext {
+        U: {
+            resp.clarification_question[@T]
+            resp.clarification_options[@T]
+            env.user_clarification_answer[@T]
+        }
+    //
+
+    // FinalAgentDecision {
+        A: {
+            resp.intent[@T]
+            resp.command[@T]
+            resp.answer[@T]
+            resp.error[@T]
+            resp.clarification_question[@T]
+            resp.clarification_options[@T]
+            resp.explanation[@T]
+        }
+    //
+}

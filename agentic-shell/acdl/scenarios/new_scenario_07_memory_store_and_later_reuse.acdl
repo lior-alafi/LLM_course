@@ -1,0 +1,94 @@
+DoitScenarioMemoryStoreAndLaterReuse[@T]: {
+    // MemoryCreatingInvocation {
+        U: {
+            env.user_query[@T]
+            env.cwd[@T]
+            env.session_id[@T]
+        }
+    //
+
+    // AgentActionForMemoryCreatingTurn {
+        S: {
+            DOIT_AGENT_ROLE
+            MEMORY_USAGE_POLICY
+            JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            env.user_query[@T]
+            sys.user_memories[@T]
+        }
+
+        A: {
+            resp.intent[@T]
+            resp.command[@T]
+            resp.answer[@T]
+        }
+    //
+
+    // MemoryExtractionLLMCall {
+        S: {
+            MEMORY_EXTRACTOR_ROLE
+            MEMORY_STORAGE_POLICY
+            MEMORY_JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            env.cwd[@T]
+            env.user_query[@T]
+            resp.command[@T]
+            resp.answer[@T]
+        }
+
+        A: {
+            resp.memories[@T]
+        }
+    //
+
+    // MemoryStoreUpdate {
+        T: {
+            sys.memory_store.upsert[@T]
+            sys.memory.key[@T]
+            sys.memory.value[@T]
+            sys.memory.updated_at[@T]
+        }
+    //
+
+    // LaterInvocation {
+        U: {
+            env.user_query[@T2]
+            env.cwd[@T2]
+            env.session_id[@T2]
+        }
+    //
+
+    // LaterAgentUsesMemory {
+        S: {
+            DOIT_AGENT_ROLE
+            MEMORY_USAGE_POLICY
+            JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            sys.user_memories[@T2]
+            env.user_query[@T2]
+        }
+
+        A: {
+            resp.intent[@T2]
+            resp.command[@T2]
+            resp.answer[@T2]
+            resp.explanation[@T2]
+        }
+    //
+
+    // LaterRuntimeExecution {
+        T: {
+            sys.single_command_policy.allowed[@T2]
+            sys.executed_command[@T2]
+            sys.stdout[@T2]
+            sys.stderr[@T2]
+            sys.returncode[@T2]
+        }
+    //
+}

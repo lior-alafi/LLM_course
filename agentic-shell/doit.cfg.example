@@ -1,0 +1,33 @@
+[model]
+# Local Ollama example. If Ollama runs inside the same Linux/WSL environment,
+# localhost usually works. If Ollama runs on Windows while doit runs inside WSL,
+# install.bash tries to replace api_base with the Windows host IP.
+provider = ollama
+model = ollama/qwen3:4b-instruct
+api_base = http://localhost:11434
+
+# Gemini example:
+# provider = gemini
+# model = gemini/gemini-2.5-flash
+# api_key_env = GOOGLE_API_KEY
+
+[agent]
+shell = /bin/bash
+secure = true
+max_clarification_rounds = 2
+command_timeout = 20
+
+[state]
+backend = file
+
+[memory]
+backend = file
+
+[user_awareness]
+enabled = true
+shell_history_limit = 20
+
+[context]
+summaries_enabled = true
+summary_threshold = 20
+summary_recent_keep = 8

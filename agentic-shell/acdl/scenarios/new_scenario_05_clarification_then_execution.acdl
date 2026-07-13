@@ -1,0 +1,81 @@
+DoitScenarioClarificationThenExecution[@T]: {
+    // Invocation {
+        U: {
+            env.user_query[@T]
+            env.cwd[@T]
+            env.session_id[@T]
+        }
+    //
+
+    // FirstAgentDecisionNeedsClarification {
+        S: {
+            DOIT_AGENT_ROLE
+            CLARIFICATION_POLICY
+            JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            sys.same_session_recent_history[@T]
+            env.user_query[@T]
+        }
+
+        A: {
+            resp.intent[@T]
+            resp.clarification_question[@T]
+            resp.clarification_options[@T]
+            resp.explanation[@T]
+        }
+    //
+
+    // UserClarificationAnswer {
+        A: {
+            resp.clarification_question[@T]
+            resp.clarification_options[@T]
+        }
+
+        U: {
+            env.user_clarification_answer[@T]
+        }
+    //
+
+    // ClarificationResolutionLLMCall {
+        S: {
+            DOIT_AGENT_ROLE
+            CLARIFICATION_RESOLUTION_POLICY
+            JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            env.user_query[@T]
+            resp.clarification_question[@T]
+            resp.clarification_options[@T]
+            env.user_clarification_answer[@T]
+        }
+
+        A: {
+            resp.intent[@T]
+            resp.command[@T]
+            resp.answer[@T]
+            resp.error[@T]
+            resp.explanation[@T]
+        }
+    //
+
+    // ValidationSafetyExecution {
+        T: {
+            sys.single_command_policy.allowed[@T]
+            sys.safety.allowed[@T]
+            sys.executed_command[@T]
+            sys.stdout[@T]
+            sys.stderr[@T]
+            sys.returncode[@T]
+        }
+    //
+
+    // Persistence {
+        T: {
+            sys.state_store.append_interaction[@T]
+            sys.prompt_logger.saved_clarification_call[@T]
+        }
+    //
+}

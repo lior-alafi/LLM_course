@@ -1,0 +1,64 @@
+DoitScenarioContextSummaryExtension[@T]: {
+    // Invocation {
+        U: {
+            env.user_query[@T]
+            env.cwd[@T]
+            env.session_id[@T]
+        }
+    //
+
+    // MainAgentLLMCallUsesExistingSummary {
+        S: {
+            DOIT_AGENT_ROLE
+            HISTORY_REFERENCE_POLICY
+            JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            sys.compacted_session_summary[@T]
+            sys.same_session_recent_history[@T]
+            env.user_query[@T]
+        }
+
+        A: {
+            resp.intent[@T]
+            resp.command[@T]
+            resp.answer[@T]
+        }
+    //
+
+    // RuntimeAfterInvocation {
+        T: {
+            sys.executed_command[@T]
+            sys.stdout[@T]
+            sys.stderr[@T]
+            sys.returncode[@T]
+            sys.state_store.append_interaction[@T]
+            sys.context_summary.threshold_reached[@T]
+        }
+    //
+
+    // ContextSummaryLLMCall {
+        S: {
+            SUMMARIZE_LONG_HISTORY_FOR_FUTURE_AGENT_CONTEXT
+            CONTEXT_SUMMARY_POLICY
+            CONTEXT_SUMMARY_JSON_OUTPUT_SCHEMA
+        }
+
+        U: {
+            sys.previous_session_summary[@T]
+            sys.older_session_interactions[@T]
+        }
+
+        A: {
+            resp.summary[@T]
+        }
+    //
+
+    // SummaryStoreUpdate {
+        T: {
+            sys.context_summary.saved[@T]
+            sys.summary_replaces_older_turns_in_future_context[@T]
+        }
+    //
+}
